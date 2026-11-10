@@ -1,0 +1,6 @@
+{
+  "summary":  "Comprehensive, production-grade architectural blueprint and implementation plan for Numo. Details the universal Expo Router mobile and web client scaffolded inside apps/mobile, Hono/Next.js serverless tRPC backend, Neon Postgres with Drizzle ORM double-entry ledger, Clerk authentication with biometric fallback, ImageKit.io media pipeline, Sentry observability, CodeRabbit CI/CD, the 8-step onboarding flow, screen-by-screen breakdown, 8 accounting rules, and all 10 acceptance scenarios.",
+  "updatedAt":  "2026-11-09T23:21:48.615277806Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

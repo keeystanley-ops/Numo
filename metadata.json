@@ -1,0 +1,8 @@
+{
+  "name": "Numo",
+  "description": "Personal finance and wealth operating system with dual environments for money and investment management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

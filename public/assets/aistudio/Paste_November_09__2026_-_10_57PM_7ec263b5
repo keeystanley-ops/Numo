@@ -1,0 +1,2681 @@
+# Mobile personal finance app — product blueprint
+
+The central idea is to build one personal finance app with two distinct environments:
+
+- Money Management: helps people understand, organise and control the money they earn and spend.
+- Investment Management: helps people understand, organise and grow the wealth they own.
+
+These should feel like two carefully designed mobile applications living inside one product. They should have their own dashboards, navigation, tools and visual character, rather than being two tabs in an ordinary finance app.
+
+Both environments share one secure financial foundation, one user profile and one voice assistant. That shared foundation is important: a user should be able to see how their everyday financial decisions affect their overall wealth without having to enter the same information twice.
+
+The product should begin in Kenya, support Kenyan financial realities properly, and be designed so it can expand internationally without rebuilding its foundations.
+
+I am treating the following as established product rules:
+
+- Mobile app for Android and iOS, not a web app.
+- Manual financial entry as the starting point. No bank connections, automatic bank imports or M-PESA API synchronisation in the first release.
+- No selling users' financial data.
+- Free product at launch, with no subscriptions or payment system in the first release.
+- No shared or family accounts, and no push notifications in the first release.
+- A separate Money Management environment and Investment Management environment.
+- Pull-down gesture switching between those environments.
+- A voice assistant that can navigate the app and carry out supported actions, with wake-word activation where the operating system and implementation allow it.
+
+The aim is not to copy the feature list of an existing budgeting app. It is to combine the strongest ideas from budgeting, wealth tracking and personal finance products, then build a more coherent experience around them.
+
+## 1. Product identity and overall vision
+
+First, the distinction is clear: this is a completely separate product from Bail Out. I will treat it as its own project, with its own identity, design language, architecture and requirements. I will not carry over Bail Out's name or assumptions.
+
+### The product vision
+
+The app should become a personal financial operating system that helps a person do two things exceptionally well:
+
+A. Manage the money they currently have.
+
+People need to know how much they earn, how much they spend, what they owe, what they can afford, and whether they are making progress towards their financial goals.
+
+B. Understand and grow the wealth they are building.
+
+People need to know what they own, where their investments are held, how those investments are performing, what income they generate, and whether their wealth is growing fast enough to reach their long-term objectives.
+
+Most importantly, the app should help users understand the relationship between these two activities.
+
+For example:
+
+A person earns KES 50,000 per month. They spend KES 30,000, save KES 10,000 and invest KES 10,000. Their budgeting environment should help them manage the KES 50,000 responsibly. Their investment environment should track the KES 10,000 investment contribution and show how the portfolio develops over time.
+
+The app should not count the KES 10,000 investment contribution as an ordinary expense and then count it again as an asset in a way that distorts financial performance.
+
+That kind of accuracy is fundamental. The app should not merely display attractive financial charts; it should help people understand their actual financial position.
+
+### Recommended product positioning
+
+The following is a working positioning statement, not a final brand or slogan:
+
+> A complete personal finance system for managing your money today and building your wealth for tomorrow.
+
+The product should be welcoming to someone who has never created a budget, but sophisticated enough for someone who owns multiple investments, manages debt, earns income from different sources and wants to analyse their wealth.
+
+The defining characteristic should be clarity and control. The user should never feel that the application is making financial decisions on their behalf or hiding how a number was calculated.
+
+## 2. What existing financial apps teach us
+
+I reviewed current public product documentation and feature pages for budgeting, personal finance and investment applications. This is a review of their documented capabilities, not a claim that I have personally tested every app. Features, prices and regional availability can also change.
+
+The most useful competitors are not necessarily the ones with the most features. They are the ones that solve particular financial problems exceptionally well.
+
+### Budgeting and money management
+
+[How to Use YNAB’s Targets | YNAB](https://images.openai.com/static-rsc-4/XEcVqACc8nzXxqZJuaD-v9KKaxd2iJf-qdHR2kBgnUb3KyaGZv0Dvg61ei8paQbjCR6AJ0SA9FjGFMiKl1yClHwIS3mII7Q1w1wzpQu6_mgNWnbvuaybFeYaRb8w25PFcSxxkUuD8_178LaVmD54eIWCAGfTX1C1L1JD1Gp9a2U?purpose=inline)
+
+YNAB — intentional budgeting
+
+YNAB's strongest idea is that money should be assigned a purpose. Users set targets for categories and savings goals rather than simply looking backwards at what they spent. Its loan planner also helps users compare debt payoff plans.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.ynab.com\&sz=32)
+
+YNAB+2
+
+
+
+What we should adopt: purposeful budgeting, savings targets, debt payoff projections and a clear indication of whether planned money has been allocated.
+
+[Monarch | TechRadar](https://images.openai.com/static-rsc-4/RQyzKzM3mx7NgWeTIu4nwJsNibfZiiKAIdpSdUVse18t7EUECYgv1bv36UI8LXnqyQ2xAffxk_yi5R9vIYeKSZ2QaHuq9zTowqK196a6BWREwClgzZKhI1-lKl2rUpa6KMQmWbCTYx9JeYr0IHQHPlmDGRX6ylME95qEz95gNgc?purpose=inline)
+
+Monarch Money — flexible financial planning
+
+Monarch offers both category-based budgets and Flex Budgeting, which groups expenses into fixed, non-monthly and flexible spending. It also provides recurring payment tracking, cash-flow analysis, reports and forecasting. Its 2026 product updates expanded reports and forecasting on mobile.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://help.monarch.com\&sz=32)
+
+Monarch Money+2
+
+
+
+What we should adopt: give users different ways to budget, make upcoming obligations visible, and bring meaningful financial reports directly to the phone.
+
+[Dashboard UI from Copilot iOS App | Ux design inspiration, App design, Design inspiration](https://images.openai.com/static-rsc-4/cjJ_bIRySGOUsiZt2Q1QSioNZW9Af3lnpXD_l9DPYnKJhKUMphUP_sip64MTNiprQKqzj1StqpO6fCEwd_81tC0dXJMH4WbYMEvw1JiUZNrZj-lbWuYzRVcYIIsySMwGFj2bE7QhYA1EvRvdSwr01y1X5Mz1LH2HMEZBHVvIaeA?purpose=inline)
+
+Copilot Money — polished connected financial picture
+
+Copilot brings spending, budgets, recurring payments, savings goals, investments and net worth into one financial product.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.copilot.money\&sz=32)
+
+Copilot Money+1
+
+
+
+What we should adopt: connect the user's overall financial picture. However, our product should retain the two independent environments rather than presenting budgeting and investment management as one blended interface.
+
+[Actual Budget Mobile — Privacy-first budgeting for iOS](https://images.openai.com/static-rsc-4/JgG0hos1LagF-A66mUQOCF8o6l2-EMLNSpzbk-20Twi1QTYQU3ZKiMX08BAqKb1uTpynndlLGLGbF3Hin61KTKAdu48ejMDsZw3-D_JPF1ccQ1LlM7YwD4feD3tndAruyFibu56Rbo8IuNuqdD4sd7yPHozY5Tw2GgvepVVVLck?purpose=inline)
+
+Actual Budget — privacy and user ownership
+
+Actual Budget is built around local-first financial data, offline functionality, user ownership and an optional encrypted synchronisation approach. It also emphasises an undo system and a clutter-free interface.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://actualbudget.org\&sz=32)
+
+Actual Budget+1
+
+
+
+What we should adopt: privacy should be an architectural decision, not a sentence in the marketing material. The user should retain control over their financial records.
+
+[5 best budgeting apps you need to try: From Monefy to Spendee, know how to save money | Photos (HT Tech)](https://images.openai.com/static-rsc-4/ObEbLt4q0BJp5ky3ZEPOWAqSLS-2esbM3ywEDycAJLf6Xsg5ghtqkKzEq4yVDhvabHe3uD6MKdQ1sMX-klsth_FMPO7Zi2xpnz0ka2EWBdA5NWlS3BQYAN_LVngCjwoLfZNBm1GR8Zm_37B5MxZZXemnREB-0WUcrerTSryOQxs?purpose=inline)
+
+Wallet by BudgetBakers — forward-looking expense planning
+
+Wallet documents planned payments, budget limits, expense statistics, historical trends and predicted expenses based on recorded and historical spending.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://support.budgetbakers.com\&sz=32)
+
+Wallet Help Center+2
+
+
+
+What we should adopt: a budget should tell users not only what they have spent, but what is likely to happen before the period ends.
+
+### Investment and wealth tracking
+
+[Stock Portfolio Tracker App | Sharesight](https://images.openai.com/static-rsc-4/0ez__k95YBl0wDEwehQm2nI8NagcoElP4taAj_4DNp0E2HSWR5S7jsoGT6KzXc5750nTGs-noLzwydyLwq96-_FhTWV7NFALD738cKVjTUiSR8mIIIsU9Bvzw58eoQyJqS4GtUzNw2-o58VjtKGUYHwT8HQnrkBLP2jH0CJ_-Nk?purpose=inline)
+
+Sharesight — accurate investment performance
+
+Sharesight focuses on portfolio returns, dividends, multiple currencies, global shares and ETFs, and other assets such as fixed-interest investments and property. It also documents corporate-action tracking such as dividends and share splits.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.sharesight.com\&sz=32)
+
+Sharesight+1
+
+
+
+What we should adopt: investment performance must include more than whether the current share price is above the purchase price. Dividends, interest, fees, contributions and currency movements matter.
+
+[Delta by eToro | The Ultimate Investment Tracker](https://images.openai.com/static-rsc-4/IIqGgYJv3XwiD0obsOk_onUPuS6WhGsGWSXFsoeHzXFlavwYIWyOg-m-xurCMaXxOAN18JAJzk2fomaQUILSgO6HAaqxSi26zdra1Mnp5wkTqfm9-HJgzwujQDImZwG2YsZif4qjIv76sPaGm32Hdi3Ub1ULJQRxZgXCYGFxVrE?purpose=inline)
+
+Delta Investment Tracker — multi-asset visibility
+
+Delta supports different asset classes and offers allocation breakdowns, portfolio insights, financial calendars and performance views.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://support.delta.app\&sz=32)
+
+Delta by eToro Help Center+2
+
+
+
+What we should adopt: a portfolio should not be limited to stocks. Users should be able to view different investment types together while still understanding each one separately.
+
+[Are You a High-Net-Worth Individual? Learn Net Worth Categories](https://images.openai.com/static-rsc-4/fNVcwfqFyfEoAKWduXe-qySZUCvcWrNrnunhZIvRuQRABGmv0RfHD7PMtb2vdwzlWPCmnDj0Vpt2zAYvwOnF5oD_TdOilHPuyhrd9f9T5al9WH0BYw9TB4sbbowIYxY5CsANi3ncsAcb3u2fKccmHLbL4dGTZB6XKZg5uJpUZ7U?purpose=inline)
+
+Kubera — complete wealth accounting
+
+Kubera tracks assets and liabilities across different currencies and asset types. Its approach distinguishes total net worth from investable wealth and accommodates assets that do not have readily available market prices.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.kubera.com\&sz=32)
+
+Kubera+1
+
+
+
+What we should adopt: wealth management should include the entire balance sheet, not just the holdings in a brokerage account.
+
+[Ghostfolio is a Free and Open Source Wealth Management Software](https://images.openai.com/static-rsc-4/BA8ik-JE6mqr3WTL6hDLLfEbuWyGK_Ittnwcsygq_hov-x807mY-YEDzozmj19aVNCoe8quUbKOYbASO91an3UvmU5Z1afh6j0NkCctTxQvE3UohrFlebkt8Rw6SVBugfdM9SnAl7FUJksFsBSvgV3fP8uvkxllkbwJaEYTSidg?purpose=inline)
+
+Ghostfolio — useful investor analytics
+
+Ghostfolio documents multi-account tracking, investment transactions, portfolio performance, dividend-inclusive returns, charts and data import/export.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://github.com\&sz=32)
+
+GitHub
+
+
+
+What we should adopt: make investment analytics understandable, while providing enough depth for more experienced investors.
+
+### What the Kenyan market teaches us
+
+[Napesa - Know Your Money. Control Your Future.](https://images.openai.com/static-rsc-4/UCHWpce_8fryj8NfDVrpDY4z_gsmq7j2De2sgDmyWq-yBj-K3A85akSWm7mN8kHq01xIU38IfdFYkBLpnau9qBqtiRu7zKG4VWlybW7gjTOuK7KLxlCYOrIIjPwJamoMZdsmfBxy1TTbIrpnK57pTC3iAp8WDUg2giZOPvdY5I4?purpose=inline)
+
+PesaSense — local financial context
+
+PesaSense highlights Kenyan spending categories, including food, transport, utilities, SHA and HELB, alongside mobile-money-related financial activity.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.pesasense.co.ke\&sz=32)
+
+PesaSense+1
+
+
+
+What we should adopt: local terminology, relevant categories, KES-first onboarding and support for financial habits that make sense in Kenya. We will not copy its SMS-reading approach because your product's first-release rules exclude automatic financial-data collection.
+
+### The combined lesson
+
+Here is how these findings should influence our product:
+
+| Competitor insight                | Our product decision                                               |
+| --------------------------------- | ------------------------------------------------------------------ |
+| YNAB's intentional budgeting      | Budget allocation and meaningful savings targets                   |
+| Monarch's flexibility             | Multiple budgeting methods and forecasts                           |
+| Copilot's full financial picture  | Shared financial calculations behind separate environments         |
+| Actual's local-first approach     | Privacy, offline use and user-owned records                        |
+| Wallet's expense predictions      | Expected end-of-month spending                                     |
+| PesaSense's local categories      | Kenya-ready categories and terminology                             |
+| Sharesight's performance analysis | Complete investment returns and dividend tracking                  |
+| Delta's portfolio analysis        | Multi-asset portfolio breakdowns                                   |
+| Kubera's balance sheet            | Net worth, investable wealth and complete asset/liability tracking |
+| Ghostfolio's investment analytics | Performance charts, transaction history and exportability          |
+
+Our opportunity is to combine these capabilities into a coherent mobile experience, without making the user navigate a complicated collection of unrelated financial tools.
+
+## 3. The fundamental architecture: two environments, one financial foundation
+
+This is the most important design decision in the whole product.
+
+The application should have two distinct environments. They should not feel like ordinary sections in the same dashboard.
+
+# Personal Finance App
+
+One product · One user · One secure financial foundation
+
+Money Management
+
+Daily financial control
+
+Income
+
+Expenses
+
+Budgets
+
+Savings
+
+Debt
+
+Cash flow
+
+Investment Management
+
+Long-term wealth building
+
+Portfolio
+
+Holdings
+
+Dividends
+
+Performance
+
+Asset allocation
+
+Wealth analysis
+
+Shared financial foundation
+
+Transactions · Valuations · Currencies · Net worth · Goals · Financial history
+
+One global voice assistant
+
+Can understand the user's current environment, navigate to the other environment and perform permitted actions across the app.
+
+### 3.1 Money Management is its own experience
+
+This environment should concentrate on the user's immediate financial life.
+
+It should answer questions such as:
+
+- How much money do I currently have?
+- How much have I spent this month?
+- How much can I safely spend before the next payday?
+- Which expenses are consuming most of my income?
+- What bills are approaching?
+- How much am I saving?
+- How much debt do I still owe?
+- Am I following my budget?
+
+The interface should prioritise quick actions, transaction entry, budgets, upcoming payments and spending decisions.
+
+### 3.2 Investment Management is its own experience
+
+This environment should concentrate on the user's accumulated and growing wealth.
+
+It should answer:
+
+- What is the current value of my investments?
+- How much capital have I invested?
+- What is my total return?
+- How much have I earned from dividends and interest?
+- Which asset classes dominate my portfolio?
+- How concentrated is my portfolio?
+- How much income could my investments generate?
+- How has my wealth developed over time?
+
+The design should feel more analytical and portfolio-oriented. It should provide clear tables, performance charts, asset allocations and investment-specific terminology.
+
+### 3.3 What the two environments must share
+
+They should share:
+
+- The user's profile and preferences.
+- The primary display currency.
+- A consistent financial date and transaction history.
+- The same account and balance records where appropriate.
+- Savings and investment goals that relate to overall wealth.
+- The same voice assistant.
+- A unified net worth calculation.
+- Secure storage and backup controls.
+
+However, they should not share the same main navigation or screen layouts.
+
+For example, a user should not open the investment environment and still see the Money Management bottom navigation. That would weaken the whole concept.
+
+### 3.4 Why this separation matters
+
+A person checking their grocery budget has a different mental task from a person reviewing their portfolio's annualised return.
+
+Combining these experiences into one interface often creates an overcrowded dashboard, with spending categories beside stock performance charts, debt balances beside dividend yields, and many different financial concepts competing for attention.
+
+Separating the environments creates a cleaner experience without separating the underlying data.
+
+The application must nevertheless provide a connection between the environments. A user's savings and investment contributions should ultimately affect their overall financial position.
+
+## 4. The signature interaction: pull-down environment switching
+
+This should become one of the product's most recognisable interactions.
+
+The user should not need to return to a home page, open a drawer or tap through multiple screens to move between Money Management and Investment Management.
+
+### 4.1 How it should work
+
+The preferred interaction is a dedicated pull-down gesture from an interaction zone at the top of the active environment.
+
+The sequence:
+
+1. The user is in Money Management.
+2. The user places a finger on the designated top interaction area and pulls down.
+3. The application recognises that the user intends to change environments, rather than refresh the current screen.
+4. A visual transition begins.
+5. Money Management gives way to Investment Management.
+6. The user arrives at the investment dashboard.
+
+The same gesture should work in the opposite direction.
+
+Proposed gesture behaviour
+
+Money
+
+Pull down
+
+Investments
+
+Environment changes
+
+Repeat the gesture from Investments to return to Money Management.
+
+Important mobile detail: the interaction zone should be just below the phone's system status area, not directly on the operating system's extreme top edge. Android and iOS reserve parts of that area for system gestures such as the notification shade and Control Center. The app should not compete with those gestures.
+
+### 4.2 Gesture recognition
+
+The gesture should only activate when it begins in the dedicated switching area.
+
+This prevents a user who is scrolling through transactions, investment holdings or charts from accidentally changing environments.
+
+The gesture should have a clear activation threshold. A small accidental movement should not cause a transition.
+
+The interface should give a little visual feedback as the user pulls down. Once the switching threshold is reached, it can complete the transition with a subtle haptic response.
+
+### 4.3 The transition animation
+
+My recommendation is a subtle morphing transition.
+
+The two environments can have different visual characters while retaining a shared design language. The transition can visually connect them, using a change in the main environment colour, a short movement of the current surface and a smooth arrival of the next dashboard.
+
+I would avoid an exaggerated portal effect or a dramatic 3D rotation. Those effects might initially look impressive but can become distracting when a user opens the application repeatedly throughout the day.
+
+The transition should feel:
+
+- Fast, smooth and controlled.
+- Consistent with native mobile interactions.
+- Noticeable enough to communicate that the user has changed environments.
+- Short enough not to interrupt frequent use.
+- Compatible with reduced-motion accessibility settings.
+
+### 4.4 A fallback switching method
+
+The gesture must not be the only way to move between environments.
+
+Some users will not discover the gesture, and some people may have motor or accessibility needs that make it difficult.
+
+Include a small, visible environment-switching control in the upper interface. It should perform exactly the same transition.
+
+The pull-down gesture is the signature interaction. The explicit control is the reliability and accessibility fallback.
+
+### 4.5 Remember the user's last environment
+
+When the user closes and reopens the application, the app should restore the last environment they were using, unless they choose otherwise.
+
+It should not unnecessarily reset to a generic home screen every time.
+
+The environment switch should preserve each environment's own navigation state where practical. For example, returning to Investments could restore the previously opened portfolio screen rather than always forcing the user back to the dashboard.
+
+## 5. Money Management environment
+
+This environment should be the user's everyday financial control centre.
+
+Its main purpose is to make financial decisions easier. It should not simply record expenses after they happen; it should help the user plan ahead, recognise spending patterns and understand what they can afford.
+
+I recommend the following main navigation:
+
+| Area         | Main purpose                         |
+| ------------ | ------------------------------------ |
+| Overview     | See the current financial position   |
+| Transactions | Record and manage financial activity |
+| Budgets      | Plan income and spending             |
+| Goals        | Manage savings targets               |
+| Debt         | Manage outstanding obligations       |
+| Insights     | Understand spending and cash flow    |
+
+These are the functional areas, not a requirement to display six equally prominent buttons. On a phone, the navigation should remain compact and easy to use.
+
+### 5.1 Money Management dashboard
+
+The dashboard should answer one question immediately:
+
+How am I doing financially right now?
+
+It should provide a useful financial summary without overwhelming the user with charts.
+
+I recommend the following components.
+
+A. Available money
+
+Display the money the user has recorded across their selected cash and financial accounts.
+
+This should include accounts such as:
+
+- Cash on hand.
+- M-PESA wallet, recorded manually.
+- Bank accounts, recorded manually.
+- Mobile wallets.
+- Savings accounts.
+- Other cash-equivalent accounts.
+
+The dashboard should distinguish the total recorded balance from the amount available for discretionary spending.
+
+For example, someone could have KES 25,000 recorded in their accounts but KES 8,000 already reserved for rent and other obligations. Simply displaying KES 25,000 as available spending money would be misleading.
+
+The application should therefore calculate:
+
+- Total recorded cash and account balances.
+- Money allocated to planned obligations.
+- Money remaining after those obligations.
+- Money that has been specifically assigned to savings or other goals.
+
+The calculation should be transparent, and users should be able to inspect what is included.
+
+B. Income summary
+
+Show:
+
+- Income received this month.
+- Expected income, where the user has entered it.
+- Income sources.
+- Income received compared with previous months.
+- Additional or irregular income.
+
+The application should support different sources of income, including salary, freelance work, business income, commissions, rental income and other personal income.
+
+It should not assume that everyone receives one salary on the same date every month.
+
+C. Expense summary
+
+Display:
+
+- Total expenses this month.
+- Spending by category.
+- Spending compared with the budget.
+- The largest spending categories.
+- The change from the previous period.
+
+For example:
+
+| Category      | Budget | Spent | Remaining |
+| ------------- | ------ | ----- | --------- |
+| Food          | 8,000  | 5,200 | 2,800     |
+| Transport     | 4,000  | 3,100 | 900       |
+| Rent          | 7,000  | 7,000 | 0         |
+| Entertainment | 2,000  | 2,400 | -400      |
+
+The user should be able to tap any category and immediately see the transactions that produced the figure.
+
+D. Upcoming financial obligations
+
+Give users a clear view of payments they have scheduled or entered manually.
+
+Examples include:
+
+- Rent.
+- Electricity.
+- Water.
+- Internet.
+- School fees.
+- Loan repayments.
+- Insurance.
+- Subscriptions.
+- Regular household expenses.
+
+Each obligation should display its due date, expected amount, payment frequency and status.
+
+E. Savings progress
+
+Show the progress of the user's active savings goals.
+
+The dashboard might show an emergency fund, a car purchase, a holiday or another goal, with the amount already saved and the remaining target.
+
+F. Financial activity
+
+Display a short list of recent transactions with clear income and expense indicators.
+
+Users should be able to open a transaction, edit it or delete it without navigating through several screens.
+
+Important: Make the dashboard customisable. Some users care most about their available balance, while others care about their budgets or upcoming bills. Allow users to choose which dashboard sections are visible and rearrange them.
+
+### 5.2 Transaction management
+
+This is one of the most important modules in the entire application.
+
+Every financial calculation depends on the quality of transaction records. If recording a transaction takes too long, users will stop using the application.
+
+The experience must make financial entry extremely simple.
+
+#### Adding an expense
+
+The user should be able to tap an obvious Add Transaction control and select an expense.
+
+The form should capture:
+
+| Field         | Explanation                    |
+| ------------- | ------------------------------ |
+| Amount        | How much was spent             |
+| Currency      | The currency used              |
+| Category      | What the money was spent on    |
+| Account       | Where the money came from      |
+| Date and time | When the transaction occurred  |
+| Description   | Optional explanation           |
+| Merchant      | Optional business or recipient |
+| Notes         | Additional information         |
+| Tags          | Optional custom labels         |
+
+For example, a user records KES 350 spent on lunch.
+
+They select Food, choose their M-PESA account and save the transaction.
+
+The application immediately:
+
+1. Records the transaction.
+2. Updates the relevant account balance.
+3. Updates the Food budget.
+4. Updates the monthly spending summary.
+5. Includes the expense in relevant reports.
+
+The user should not need to refresh the dashboard manually.
+
+#### Adding income
+
+Income should use a similar process, but with income-specific categories.
+
+Examples:
+
+- Salary.
+- Freelance income.
+- Business revenue.
+- Commission.
+- Rental income.
+- Interest.
+- Dividends received.
+- Gifts.
+- Refunds, where applicable.
+
+The application must distinguish income from transfers. Moving money from a bank account into an M-PESA wallet is not income. It is a transfer between accounts owned by the same user.
+
+#### Transaction splitting
+
+This is essential for accurate spending.
+
+Imagine that a user spends KES 2,000 at a supermarket. The purchase includes:
+
+- KES 1,200 of groceries.
+- KES 500 of toiletries.
+- KES 300 of household supplies.
+
+Rather than recording the entire KES 2,000 under groceries, the user should be able to split the transaction across three categories.
+
+The total of the split transactions must always equal the original transaction amount.
+
+The user should also be able to split a transaction between personal and business spending when appropriate.
+
+#### Transfers between accounts
+
+Users should be able to record transfers such as:
+
+- Bank to M-PESA.
+- M-PESA to cash.
+- Bank to savings account.
+- Savings account to another bank account.
+
+These transfers must not inflate income or expenses.
+
+For example, withdrawing KES 5,000 from a bank account and placing it in a cash wallet changes where the money is held. It does not mean the user earned KES 5,000 or spent KES 5,000.
+
+#### Refunds and reimbursements
+
+The application should also support:
+
+- Full refunds.
+- Partial refunds.
+- Reimbursements.
+- Reversed transactions.
+
+When a transaction is refunded, the original expense should remain visible in the history, with the refund correctly represented. This preserves a reliable audit trail.
+
+#### Search, filters and transaction history
+
+Users should be able to search transactions by merchant, description, amount, date or category.
+
+Filters should include:
+
+- Income.
+- Expenses.
+- Transfers.
+- Category.
+- Account.
+- Date range.
+- Payment method.
+- Tags.
+
+Users should also be able to edit transactions in bulk, where that is appropriate.
+
+A reliable undo function is highly desirable. If someone accidentally deletes or changes an entry, they should be able to recover it.
+
+Why this matters: Actual Budget's emphasis on fast transaction editing, splits and undo is a good design lesson. A finance app must make correction as convenient as recording.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://actualbudget.org\&sz=32)
+
+Actual Budget+1
+
+
+
+### 5.3 Budgeting system
+
+I would make this one of the strongest parts of the application.
+
+Do not force everyone to use one budgeting methodology. People have different income patterns, financial responsibilities and levels of budgeting experience.
+
+Instead, provide a few clear budgeting methods that use the same transaction records.
+
+#### Budget method A: Category budgeting
+
+This is the traditional approach.
+
+The user creates spending categories and sets a limit for each one.
+
+For example:
+
+| Category      | Monthly limit |
+| ------------- | ------------- |
+| Rent          | KES 7,000     |
+| Food          | KES 8,000     |
+| Transport     | KES 4,000     |
+| Utilities     | KES 2,000     |
+| Internet      | KES 3,000     |
+| Entertainment | KES 2,000     |
+| Miscellaneous | KES 2,000     |
+
+The app tracks spending against each limit.
+
+A category should display:
+
+- Allocated budget.
+- Total spent.
+- Amount remaining.
+- Percentage used.
+- Expected end-of-period spending.
+
+The progress indicator should communicate risk clearly.
+
+For example, users might choose to receive an in-app warning when a category reaches 80% of its allocation. This threshold must be configurable.
+
+The system must not imply that spending 80% is automatically bad. A rent category may legitimately be 100% used early in the month.
+
+The application should distinguish between categories where spending is expected to be completed early and categories where overspending is a concern.
+
+#### Budget method B: Flexible budgeting
+
+Some users do not want to manage 20 or 30 individual spending limits.
+
+A flexible budget allows them to group spending into broad categories.
+
+For example:
+
+- Fixed commitments.
+- Non-monthly expenses.
+- Flexible spending.
+- Savings and investments.
+
+The application then shows how much flexible spending remains after fixed obligations and planned saving.
+
+This is useful for users who want more freedom and less administration.
+
+Monarch's Flex Budgeting is a useful reference for this approach.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://help.monarch.com\&sz=32)
+
+Monarch Money+1
+
+
+
+#### Budget method C: Zero-based budgeting
+
+This method asks users to give all planned income a purpose.
+
+The application calculates the amount of income that remains unallocated.
+
+For example:
+
+| Allocation         | Amount     |
+| ------------------ | ---------- |
+| Income             | KES 50,000 |
+| Rent and bills     | KES 15,000 |
+| Food and transport | KES 12,000 |
+| Debt repayments    | KES 5,000  |
+| Savings            | KES 8,000  |
+| Investments        | KES 5,000  |
+| Flexible spending  | KES 5,000  |
+| Unallocated        | KES 0      |
+
+The point is not that the user must spend every shilling. Savings, debt repayment and investment contributions are legitimate uses of money.
+
+The app should make it easy to see whether the user has given all their expected income a purpose.
+
+This is one of the most useful ideas from YNAB.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.ynab.com\&sz=32)
+
+YNAB+1
+
+
+
+#### Budget method D: Pay-cycle budgeting
+
+Many people do not receive income neatly at the beginning of each calendar month.
+
+The app should allow users to budget around their actual paydays.
+
+Supported cycles should include:
+
+- Weekly.
+- Fortnightly.
+- Twice a month.
+- Monthly.
+- Irregular income.
+- User-defined periods.
+
+A person who gets paid on the 25th should not be forced to think of the 1st as the beginning of their financial month.
+
+This is particularly important for users whose income arrives on different dates.
+
+#### Budget rollover
+
+Users should decide what happens to unused money at the end of a budgeting period.
+
+For example:
+
+A user allocates KES 5,000 for entertainment but spends only KES 3,000.
+
+They can choose to:
+
+- Carry the remaining KES 2,000 into the next period.
+- Return it to their available budget.
+- Reallocate it to a savings goal.
+
+The same principle should apply to overspending. Users should be able to see how a budget shortfall affects the following period.
+
+Do not automatically hide previous overspending when a new month starts.
+
+#### Budget templates
+
+The application should include editable templates for common budgeting approaches:
+
+- Basic monthly budget.
+- Student budget.
+- Salary-based budget.
+- Irregular-income budget.
+- Family household budget structure, without enabling shared accounts.
+- Freelancer budget.
+- Small-business owner personal budget.
+- Zero-based budget.
+
+A template should simply create a starting category structure and suggested allocations. It must not assume that its suggested amounts are correct for the user.
+
+#### Budget forecasting
+
+This is where budgeting becomes more useful than simple expense tracking.
+
+The application should estimate the user's likely end-of-period spending using:
+
+- Transactions already recorded.
+- Scheduled payments entered by the user.
+- Historical spending patterns.
+- Remaining days in the period.
+- The user's current budget allocations.
+
+For example:
+
+A user has spent KES 6,000 on food by the 10th of the month. Their food budget is KES 12,000.
+
+The application can estimate that the user might spend approximately KES 18,000 by the end of the month if their current rate continues.
+
+It should show that this is an estimate, explain what it is based on, and allow the user to adjust it.
+
+Wallet's documented predicted-expense feature is a useful reference for this capability.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://support.budgetbakers.com\&sz=32)
+
+Wallet Help Center+1
+
+
+
+### 5.4 Recurring payments and financial calendar
+
+Users should not have to remember every regular obligation manually.
+
+Allow them to create recurring entries.
+
+Each recurring entry should contain:
+
+- Payment name.
+- Amount or estimated amount.
+- Category.
+- Account.
+- Frequency.
+- Due date.
+- Start date.
+- Optional end date.
+- Whether the amount is fixed or variable.
+- Whether it is still active.
+
+Examples include rent, electricity, internet, subscriptions, insurance and monthly loan repayments.
+
+The calendar should have two important functions.
+
+First: upcoming obligations.
+
+Users can see what payments are expected during the week or month.
+
+Second: the actual payment record.
+
+When the user pays an obligation, they should be able to mark it as paid and create or link the actual transaction.
+
+The app must avoid recording the same payment twice.
+
+For variable bills, the user should be able to enter an estimated value, then replace it with the actual value when paid.
+
+Also include a monthly recurring-payment summary. This should show how much money is committed to recurring obligations and how much remains for flexible spending.
+
+### 5.5 Savings goals
+
+Savings should have its own module instead of being treated as just another expense category.
+
+A user should be able to create a goal by entering:
+
+- Goal name.
+- Target amount.
+- Current amount saved.
+- Target date.
+- Currency.
+- Priority.
+- Associated savings account, if relevant.
+- Optional notes or description.
+
+The application should calculate:
+
+- Percentage complete.
+- Amount remaining.
+- Required saving per week or month.
+- Estimated completion date at the current saving rate.
+- Whether the goal is on schedule.
+
+For example, a user wants to save KES 120,000 for a car deposit within 12 months.
+
+The app should calculate that the user needs to save KES 10,000 per month, assuming no existing savings and no investment return.
+
+It should also let the user change the target date or amount and immediately recalculate the required contribution.
+
+#### Multiple goals
+
+Users should be able to manage several goals simultaneously.
+
+Examples:
+
+- Emergency fund.
+- Rent deposit.
+- Education.
+- Vehicle purchase.
+- Holiday.
+- Business capital.
+- Home deposit.
+- Medical reserve.
+
+The user should be able to prioritise them.
+
+#### Emergency fund
+
+Include a dedicated emergency fund view.
+
+Allow a user to set a target based on a number of months of essential expenses, rather than only entering an arbitrary target.
+
+For instance, the user might choose three, six or nine months of essential expenses.
+
+The app calculates the target using their recorded essential spending. Users can adjust the result.
+
+### 5.6 Debt management
+
+Debt must be treated as a complete financial module.
+
+It should not just be a number displayed on a dashboard.
+
+Users should be able to add different forms of debt:
+
+- Personal loans.
+- Bank loans.
+- Student loans.
+- HELB.
+- Credit cards.
+- Car loans.
+- Mortgages.
+- Mobile loans.
+- Loans from friends or family.
+- Business-related personal guarantees or obligations, where the user chooses to track them.
+
+Each debt record should include:
+
+| Field               | Function                  |
+| ------------------- | ------------------------- |
+| Debt name           | Identifies the obligation |
+| Original amount     | Initial amount borrowed   |
+| Outstanding balance | Current unpaid balance    |
+| Interest rate       | Annual or specified rate  |
+| Repayment amount    | Planned regular payment   |
+| Frequency           | Weekly, monthly or custom |
+| Due date            | Next repayment date       |
+| Loan start date     | When the debt began       |
+| Expected end date   | Estimated payoff date     |
+| Lender              | Optional lender details   |
+| Notes               | Other loan information    |
+
+#### Debt payoff simulator
+
+The app should allow users to test how different repayment amounts affect their debt.
+
+For example:
+
+- Current monthly payment: KES 3,000.
+- Proposed payment: KES 5,000.
+- Additional payment: KES 2,000.
+
+The simulator should estimate:
+
+- New payoff date.
+- Interest saved.
+- Number of payments remaining.
+- Total expected repayment.
+- Difference compared with the existing plan.
+
+This should be calculated using the loan's entered interest and repayment terms, with assumptions shown clearly.
+
+#### Debt repayment strategies
+
+Include two recognised methods.
+
+Debt avalanche: prioritise the debt with the highest interest rate. This can reduce interest costs, assuming other minimum payments are maintained.
+
+Debt snowball: prioritise the smallest outstanding balance. This can give users quicker visible progress.
+
+The application should compare the methods where it has sufficient loan information.
+
+YNAB's debt planner demonstrates the value of letting users explore extra-payment scenarios instead of merely displaying a loan balance.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.ynab.com\&sz=32)
+
+YNAB+1
+
+
+
+#### Debt-payment accounting
+
+A repayment should be divided into principal and interest whenever that information is available.
+
+The principal reduces the outstanding liability. The interest is an expense.
+
+This distinction is essential for correct financial reporting.
+
+### 5.7 Spending insights
+
+The Insights area should help users understand why their financial position is changing.
+
+It should answer more than "you spent KES 4,000 on food".
+
+Recommended insights include:
+
+Spending by category: where the money goes.
+
+Spending by merchant: which businesses receive the most money.
+
+Spending by day: which days the user typically spends more.
+
+Spending by week: how spending changes during a month.
+
+Spending by month: long-term changes in spending behaviour.
+
+Needs versus wants: allow transactions to be labelled, with the category breakdown available for comparison.
+
+Fixed versus flexible expenses: help users understand how much of their income is committed.
+
+Income versus expenses: show whether the user consistently spends less than they earn.
+
+Recurring expenses: show how much of the user's income is committed before discretionary spending begins.
+
+The app should allow the user to tap a chart or statistic and inspect the transactions behind it.
+
+This is an important usability pattern in modern reporting products such as Monarch.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://help.monarch.com\&sz=32)
+
+Monarch Money+1
+
+
+
+## 6. Investment Management environment
+
+This environment must feel more like a dedicated investment portfolio manager.
+
+It should be useful to a beginner holding a single money market fund, as well as an experienced investor who owns stocks, bonds, ETFs, real estate and other assets.
+
+The design should not assume that every user is an active trader.
+
+The primary goal is to help people understand their investments, their returns and their wealth.
+
+I recommend the following navigation:
+
+| Area      | Main purpose                      |
+| --------- | --------------------------------- |
+| Portfolio | Total investment position         |
+| Holdings  | Individual assets and investments |
+| Activity  | Investment transactions           |
+| Income    | Dividends and interest            |
+| Analysis  | Returns, allocation and risk      |
+| Watchlist | Assets the user wants to monitor  |
+
+### 6.1 Investment dashboard
+
+The dashboard should immediately communicate the condition of the user's portfolio.
+
+It should show:
+
+Total portfolio value
+
+The current recorded or estimated value of all investments included in the portfolio.
+
+Total invested capital
+
+How much the user has contributed, adjusted for withdrawals and the specific return method used.
+
+Total gain or loss
+
+The difference between the portfolio's value and its relevant invested capital, with dividends, interest, fees and withdrawals treated correctly.
+
+Total investment income
+
+The dividends, interest and distributions received over a selected period.
+
+Portfolio allocation
+
+The percentage of the portfolio held in each asset class.
+
+Performance history
+
+A graph showing how portfolio value and returns have changed over time.
+
+Top holdings
+
+The assets making up the largest share of the portfolio.
+
+Upcoming income
+
+Expected dividends, coupon payments or other investment distributions where the user has entered the relevant information.
+
+Valuation freshness
+
+Show when a price or balance was last updated. An old manual valuation must not appear to be a live market price.
+
+### 6.2 Portfolio and account organisation
+
+Users should be able to create multiple investment portfolios.
+
+For example:
+
+- Long-term wealth portfolio.
+- Dividend portfolio.
+- Retirement portfolio.
+- Speculative investment portfolio.
+- Global stock portfolio.
+- Kenyan investment portfolio.
+
+Within each portfolio, users should be able to create or assign investment accounts.
+
+Examples:
+
+- NSE brokerage account.
+- International brokerage account.
+- Money market fund account.
+- Treasury investment account.
+- SACCO membership.
+- Crypto wallet.
+- Private investment account.
+
+This organisation should make it possible to review the overall portfolio or focus on one investment strategy.
+
+The user should be able to see the same holding in the overall consolidated portfolio without duplicating it across accounts.
+
+### 6.3 Supported investment and asset classes
+
+This is where I recommend going beyond ordinary stock portfolio trackers.
+
+The user should be able to track assets that form part of their broader wealth, not just assets with a stock ticker.
+
+| Asset class          | Information to track                                                             |
+| -------------------- | -------------------------------------------------------------------------------- |
+| NSE shares           | Company, ticker, quantity, purchase price, fees, dividends and current valuation |
+| International shares | Company, exchange, ticker, quantity, purchase price and currency                 |
+| ETFs                 | Fund, ticker, units, purchase cost, market value and distributions               |
+| Money market funds   | Provider, invested amount, units or balance, returns, fees and valuation date    |
+| Treasury bills       | Investment amount, discount or yield, maturity date and redemption amount        |
+| Government bonds     | Principal, coupon rate, payment schedule, maturity and market or estimated value |
+| SACCO shares         | Member shares, deposits, dividends, interest and updated member balance          |
+| REITs                | Units, purchase cost, valuation, distributions and currency                      |
+| Cryptocurrency       | Asset, quantity, cost basis, valuation and exchange or wallet                    |
+| Real estate          | Property value, ownership percentage, rental income and related debt             |
+| Private businesses   | Ownership percentage, invested capital, estimated valuation and distributions    |
+| Private funds        | Contributions, commitments, capital calls, distributions and estimated value     |
+| Precious metals      | Metal type, quantity, purchase price and current estimated price                 |
+| Other assets         | Description, purchase cost, estimated value, ownership and valuation date        |
+
+This should be an extensible asset model. Do not hard-code the entire application around public stocks and cryptocurrencies.
+
+#### Important distinction: investment assets versus personal assets
+
+The application should distinguish between assets held primarily to grow wealth and assets owned for personal use.
+
+For example:
+
+- A rental property may be a wealth-producing investment.
+- A home occupied by its owner is an asset, but its value is not necessarily readily available for investment.
+- A vehicle is part of net worth, but it should not automatically be considered an investment.
+- Jewellery or personal valuables may be part of the balance sheet without being productive investments.
+
+This distinction becomes very important when calculating investable net worth and financial freedom.
+
+Kubera's approach to tracking the complete balance sheet, while distinguishing investable assets from total net worth, is a particularly useful reference.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.kubera.com\&sz=32)
+
+Kubera+1
+
+
+
+### 6.4 Manual investment entry
+
+The first release should not depend on brokerage integrations.
+
+The user should be able to add an investment manually.
+
+For a share purchase, for example, the user enters:
+
+- Company or ticker.
+- Exchange.
+- Quantity purchased.
+- Purchase date.
+- Purchase price per share.
+- Transaction fees.
+- Currency.
+- Investment account.
+- Optional notes.
+
+The application records the transaction and updates the holding.
+
+When the user buys another batch of the same stock at a different price, the application should add to the existing holding while preserving the individual purchase records.
+
+The same principle should apply to other investment classes, using fields appropriate to each asset.
+
+Users must be able to record investments that do not have market prices. For these assets, the application should support manual valuations and keep a history of valuation changes.
+
+### 6.5 Investment activity and transaction types
+
+The investment ledger should support more than purchases and sales.
+
+At minimum:
+
+- Buy.
+- Sell.
+- Deposit or contribution.
+- Withdrawal.
+- Dividend received.
+- Interest received.
+- Distribution received.
+- Investment fees.
+- Tax withheld.
+- Stock split.
+- Bonus shares.
+- Rights issue.
+- Capital call.
+- Maturity or redemption.
+- Manual valuation adjustment.
+
+Every transaction should be connected to the relevant investment account and asset where appropriate.
+
+For example, a user buys shares for KES 10,000 and pays KES 100 in transaction fees.
+
+The app should record the share acquisition and the cost incurred. It should not simply treat the full KES 10,100 as an ordinary living expense in Money Management.
+
+The app's shared financial foundation should understand that this is a movement of money into an investment, not consumption.
+
+### 6.6 Portfolio performance
+
+This is a feature that deserves special attention.
+
+Many simple investment trackers show only the difference between the original purchase price and the current price.
+
+That is insufficient for a serious long-term portfolio manager.
+
+The application should provide different performance views.
+
+Unrealised gain or loss
+
+The gain or loss on investments the user still holds.
+
+Realised gain or loss
+
+The gain or loss from investments that have been sold or redeemed.
+
+Dividend and interest income
+
+The cash income generated by the holdings.
+
+Fees and taxes
+
+The costs associated with owning, buying and selling investments.
+
+Currency impact
+
+The effect of foreign exchange movements on investments held in other currencies.
+
+Total return
+
+The overall return, taking account of the relevant cash flows, investment income and valuation changes.
+
+The interface should distinguish simple gain/loss from investment return calculations so users do not confuse one with another.
+
+As the product matures, support more advanced performance methodologies:
+
+- Time-weighted return, useful for evaluating investment performance while reducing the distortion caused by the timing of deposits and withdrawals.
+- Money-weighted return or internal rate of return, useful for understanding the user's actual investment experience, including when money was added and withdrawn.
+
+For a beginner, the app should show a straightforward return summary. Advanced calculation methods should be available in the detailed analysis area.
+
+Sharesight and Ghostfolio demonstrate the importance of dividend-inclusive and transaction-aware performance analysis.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.sharesight.com\&sz=32)
+
+Sharesight+1
+
+
+
+### 6.7 Dividends and investment income
+
+This should be a dedicated feature, not a small item hidden under individual holdings.
+
+Users who invest for income need to understand how much their portfolio generates.
+
+The module should include:
+
+- Dividends received.
+- Interest received.
+- Distributions.
+- Gross amount.
+- Withholding tax, if known.
+- Net amount received.
+- Payment date.
+- Related holding.
+- Currency.
+- Income frequency.
+- Historical income.
+
+The user should be able to see monthly, quarterly and annual investment income.
+
+For example, a person may own several dividend-paying stocks and want to know how much income they have generated over the past twelve months.
+
+The app should calculate this from their recorded receipts.
+
+It should also support projected income where sufficient dividend or interest information has been manually entered.
+
+Projected income must be clearly labelled as an estimate, not a guaranteed payment.
+
+### 6.8 Investment income calendar
+
+Build a calendar dedicated to investment income and relevant asset dates.
+
+It should display:
+
+- Expected dividend dates.
+- Recorded dividend payments.
+- Coupon payment dates.
+- Treasury bill maturity dates.
+- Bond maturity dates.
+- Fund distribution dates.
+- Other investment events entered by the user.
+
+The calendar should let users distinguish between expected, confirmed and received income.
+
+This is especially useful for dividend investors and people with fixed-income portfolios.
+
+Delta documents a financial calendar, while Sharesight has dividend and future-income reporting features. These are valuable patterns to bring together.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://delta.app\&sz=32)
+
+Delta by etoro+1
+
+
+
+### 6.9 Asset allocation
+
+Users should be able to see exactly how their investment portfolio is distributed.
+
+For example:
+
+| Asset class        | Value       | Allocation |
+| ------------------ | ----------- | ---------- |
+| Stocks             | KES 200,000 | 40%        |
+| Money market funds | KES 100,000 | 20%        |
+| Government bonds   | KES 100,000 | 20%        |
+| ETFs               | KES 50,000  | 10%        |
+| Crypto             | KES 25,000  | 5%         |
+| Other investments  | KES 25,000  | 5%         |
+| Total              | KES 500,000 | 100%       |
+
+The app should allow users to view allocation by:
+
+- Asset class.
+- Individual holding.
+- Country or market.
+- Currency.
+- Sector.
+- Investment account.
+- Portfolio strategy.
+
+This would help a person recognise overconcentration.
+
+For example, someone may own ten different stocks, but all ten may belong to the same sector. Merely counting holdings would give a misleading impression of diversification.
+
+### 6.10 Portfolio risk and concentration analysis
+
+This should be presented as an educational analytical tool, not as a promise of investment safety.
+
+Potential indicators include:
+
+- Largest holding as a percentage of the portfolio.
+- Top five holdings as a percentage of the portfolio.
+- Asset-class concentration.
+- Country exposure.
+- Currency exposure.
+- Sector exposure.
+- High-volatility asset allocation, where reliable classification data exists.
+- Liquidity classification.
+- Percentage of assets with old or estimated valuations.
+
+The app should explain why each indicator matters.
+
+For example:
+
+"Your three largest holdings represent 68% of your portfolio."
+
+That is much more informative than displaying a mysterious risk score.
+
+### 6.11 Watchlist
+
+Users should be able to monitor investments they do not yet own.
+
+A watchlist item should include:
+
+- Asset name.
+- Ticker or identifier, where available.
+- Market or provider.
+- Current or last-known market price, if available.
+- User's preferred entry price.
+- Reason for monitoring.
+- Notes.
+
+Watchlist assets must be separate from actual holdings.
+
+Adding a company to a watchlist must not change portfolio value or investment performance.
+
+For the first release, a basic manual watchlist could work. Automated price updates and more advanced monitoring can be added after the main tracking system is reliable.
+
+### 6.12 Investment research and education
+
+A useful later addition is an educational section explaining basic investment concepts.
+
+Examples:
+
+- What is a dividend?
+- What is dividend yield?
+- What is compound growth?
+- What is a money market fund?
+- What is a Treasury bill?
+- What does diversification mean?
+- What is the difference between realised and unrealised gains?
+- Why can an investment's value fall?
+
+This should be an educational library, not a feed encouraging users to constantly buy and sell.
+
+The product should avoid pretending that a simple algorithm knows which investment a person should purchase.
+
+## 7. The shared wealth engine
+
+Although the user must experience two separate environments, the application needs one unified financial calculation system underneath them.
+
+I would make this the most carefully designed part of the product.
+
+### 7.1 Unified net worth
+
+Net worth should be calculated as:
+
+\\[ \text{Net Worth} = \text{Total Assets} - \text{Total Liabilities} \\]
+
+Assets can include:
+
+- Cash and bank balances.
+- Savings.
+- Investments.
+- Real estate.
+- SACCO balances.
+- Business ownership.
+- Other personal assets.
+
+Liabilities can include:
+
+- Personal loans.
+- Student loans.
+- Mortgages.
+- Credit cards.
+- Car loans.
+- Other outstanding obligations.
+
+The app should present a clear breakdown of these amounts.
+
+### 7.2 Total net worth versus investable net worth
+
+These must be separate figures.
+
+Total net worth includes the user's assets minus their debts.
+
+Investable net worth should focus on assets that are reasonably available to be invested or converted into investable capital, less relevant liabilities, according to a clearly documented definition.
+
+For example, a person's house may add KES 10 million to their net worth, but that does not mean they have KES 10 million available to invest.
+
+The app should not allow personal property to inflate investment capacity.
+
+### 7.3 Financial timeline
+
+This should be a chronological record of meaningful financial milestones.
+
+Examples:
+
+- First salary.
+- First recorded investment.
+- First KES 100,000 saved.
+- First KES 1 million net worth.
+- First debt paid off.
+- First dividend received.
+- First positive monthly cash flow.
+- First year with positive net worth growth.
+
+Users should be able to view these milestones over time.
+
+This is not merely a motivational feature. It gives the user a historical record of how their financial position developed.
+
+### 7.4 Financial health overview
+
+I recommend a transparent financial health dashboard rather than an opaque single score.
+
+It should evaluate areas such as:
+
+- Savings rate.
+- Emergency fund coverage.
+- Debt-to-income ratio.
+- Expense-to-income ratio.
+- Budget consistency.
+- Debt repayment progress.
+- Investment contribution consistency.
+- Asset diversification.
+- Net worth direction.
+
+Each indicator should have a clear explanation and a visible calculation.
+
+For example:
+
+Emergency fund coverage: 1.8 months
+
+This means the user's recorded emergency savings cover approximately 1.8 months of their essential expenses, using the current recorded spending pattern.
+
+This is actionable. A generic score of 72/100 is not.
+
+Where the app does provide an overall Financial Health Score, users must be able to see the underlying factors, weights and missing information. A lack of data should never be interpreted as a financial failure.
+
+### 7.5 Wealth velocity
+
+This could become one of the product's most distinctive features.
+
+Wealth velocity should measure how quickly the user's net worth is changing over time.
+
+For example, show:
+
+- Change in net worth over the last month.
+- Change over the last three months.
+- Change over the last twelve months.
+- Average monthly net worth increase.
+- Contribution from savings and investments.
+- Contribution from market or valuation changes.
+- Change in liabilities.
+
+It is important to separate money the user added from money their investments generated.
+
+If net worth grows by KES 50,000, users should be able to understand how much came from additional savings, investment gains, debt reduction and asset valuation changes.
+
+### 7.6 Financial freedom tracker
+
+This should help users explore their long-term financial independence goals.
+
+The user should be able to enter:
+
+- Desired monthly income in retirement or financial independence.
+- Current investment assets.
+- Expected regular investment contributions.
+- Desired target date.
+- Assumed investment return.
+- Inflation assumption.
+- Expected withdrawal rate, if they choose to use one.
+
+The app can estimate the capital required and the user's potential progress towards that target.
+
+For example, it could show the estimated portfolio needed to generate a particular monthly income.
+
+However, it must clearly identify assumptions. Inflation, taxes, market returns, investment income and withdrawal rates are uncertain. The application must not present a projection as a guaranteed future result.
+
+### 7.7 What-if financial simulator
+
+This could be another major differentiator.
+
+Users should be able to explore hypothetical decisions before changing their real financial records.
+
+Examples:
+
+- What happens if I increase my monthly savings by KES 2,000?
+- What happens if I reduce food spending by KES 1,500?
+- How much earlier could I pay off my debt if I make additional payments?
+- What if I invest KES 5,000 per month for ten years?
+- What if I increase my monthly investment contribution by 10% every year?
+- What if my income falls by 20%?
+- Can I afford to move into a more expensive house?
+- What happens if I buy a car using a loan?
+
+The simulator should produce different scenarios and explain the assumptions used.
+
+It must not modify the user's real transactions, budgets, balances or investment holdings.
+
+### 7.8 Cross-environment financial movement
+
+This is where the two environments become genuinely powerful together.
+
+Consider this sequence:
+
+1. User receives KES 50,000 in Money Management.
+2. User budgets KES 8,000 for savings.
+3. User sets aside KES 5,000 for investments.
+4. User records the transfer of KES 5,000 into an investment account.
+5. The investment environment recognises a KES 5,000 contribution.
+6. The net worth dashboard reflects the movement from cash to investments.
+
+The important thing is that this contribution does not create fictitious income or an additional expense.
+
+The user should be able to see how everyday money decisions support longer-term wealth accumulation.
+
+## 8. The global voice assistant
+
+The voice assistant should be a defining feature of the product, not just a microphone icon that converts speech into a search query.
+
+The idea is to let users interact with their finances naturally, without having to navigate through multiple screens for routine actions.
+
+It should work across both environments and understand the context of the current screen.
+
+For now, I will call it the Assistant. Its final name and wake phrase should be decided as part of branding.
+
+### 8.1 How the user activates it
+
+There should be three possible ways to activate the assistant.
+
+A. Wake word
+
+The user says a chosen phrase, such as "Hey [app name]".
+
+The app recognises the phrase and activates the assistant.
+
+B. Push-to-talk
+
+The user taps a microphone button and speaks.
+
+This is essential even if wake-word support is implemented. It provides a predictable alternative when wake-word detection is unavailable or disabled.
+
+C. Assistant button
+
+The assistant should have a persistent, easily accessible control in both environments.
+
+Tapping it opens the assistant interaction panel, where the user can speak or type a command.
+
+The assistant must not be restricted to a single dashboard or environment.
+
+### 8.2 What the assistant should understand
+
+It should understand commands in several groups.
+
+#### Group 1: Navigation
+
+The assistant should be able to move the user around the application.
+
+Examples:
+
+- "Open my investments."
+- "Take me to my budget."
+- "Show my debts."
+- "Open my dividend income."
+- "Go to my savings goals."
+- "Show my net worth."
+
+Switching environments through voice should use the same transition as the pull-down gesture.
+
+#### Group 2: Financial questions
+
+The assistant should answer questions using the user's recorded financial information.
+
+Examples:
+
+- "How much did I spend this month?"
+- "How much do I have left in my food budget?"
+- "How much do I owe?"
+- "What is my current net worth?"
+- "How much have I invested?"
+- "How much dividend income did I receive this year?"
+- "Which category takes the largest share of my income?"
+- "How much can I safely spend before payday?"
+- "How much do I need to save every month to reach my goal?"
+
+The answer should be based on recorded data, not invented figures.
+
+Where it is useful, the assistant should explain its calculation.
+
+For example:
+
+User: "How much can I spend this week?"
+
+Assistant: "You have KES 6,500 remaining in your flexible spending allowance for this week. KES 2,000 is already planned for upcoming expenses, leaving KES 4,500 uncommitted."
+
+The assistant should show which categories and obligations were included.
+
+#### Group 3: Recording expenses
+
+The assistant should be able to create a transaction from speech.
+
+Example:
+
+User: "Record 450 shillings for lunch."
+
+The assistant should identify:
+
+- Type: Expense.
+- Amount: KES 450.
+- Category: Food.
+- Date: Today.
+- Account: The default selected account, or a request for the account if none is appropriate.
+
+It should then display a compact confirmation preview.
+
+Assistant: "I am recording a KES 450 food expense from your M-PESA account. Should I save it?"
+
+The user confirms, and the transaction is recorded.
+
+This matters because voice recognition can misunderstand numbers, names and categories. A transaction should not silently appear in the financial ledger just because the assistant thinks it heard something correctly.
+
+#### Group 4: Recording income
+
+Examples:
+
+- "Record my salary of 45,000 shillings."
+- "Add 2,500 shillings from freelance work."
+- "Record a dividend of 1,200 shillings."
+- "Add 5,000 to my business income."
+
+The assistant should route each entry to the correct environment and transaction type.
+
+#### Group 5: Budget management
+
+Examples:
+
+- "Create a food budget of 8,000 shillings."
+- "Increase my transport budget to 5,000."
+- "How much have I used in my entertainment budget?"
+- "Set a savings goal of 100,000 shillings."
+- "How much should I save weekly to reach my goal?"
+
+Any action that changes an existing budget should be previewed before being saved.
+
+#### Group 6: Investment management
+
+Examples:
+
+- "How much are my investments worth?"
+- "Record a purchase of 20 shares."
+- "How much dividend income have I earned?"
+- "Show me my largest investments."
+- "What percentage of my portfolio is in stocks?"
+- "Record an interest payment of 800 shillings."
+- "When does my Treasury bill mature?"
+
+Investment entries must be recorded as investment activity, not ordinary spending.
+
+#### Group 7: Financial scenarios
+
+The assistant should eventually answer questions such as:
+
+- "What happens if I invest 5,000 shillings every month?"
+- "How much could my portfolio be worth in ten years?"
+- "What if I pay an extra 2,000 on my loan?"
+- "How much do I need to save to buy a car next year?"
+- "What if my income increases by 10%?"
+
+These should use the app's financial simulator, not generate unsupported financial projections.
+
+### 8.3 The assistant must understand context
+
+The assistant should understand which environment the user is currently in.
+
+For example, when the user is in Money Management and says:
+
+"How much have I invested?"
+
+The assistant should understand that this question requires information from Investment Management.
+
+It should answer directly or transition to the relevant portfolio screen, depending on the nature of the request.
+
+Similarly, if a user is reviewing a particular budget and asks:
+
+"How much did I spend here last month?"
+
+The assistant should understand that "here" refers to the currently selected budget category.
+
+This is contextual interaction, rather than merely processing isolated voice commands.
+
+### 8.4 Confirmation and permission rules
+
+The assistant needs clear boundaries.
+
+| Action                                        | Required behaviour                    |
+| --------------------------------------------- | ------------------------------------- |
+| Open a screen                                 | Execute immediately                   |
+| Show a financial statistic                    | Answer immediately                    |
+| Explain a report                              | Answer immediately                    |
+| Create an expense                             | Preview and confirm                   |
+| Create an income record                       | Preview and confirm                   |
+| Change a budget                               | Preview and confirm                   |
+| Record an investment transaction              | Preview and confirm                   |
+| Change an asset valuation                     | Preview and confirm                   |
+| Delete financial records                      | Require explicit confirmation         |
+| Delete an entire account or financial history | Strong confirmation and clear warning |
+
+The assistant should never execute a financial action that it has not correctly identified.
+
+It should not transfer funds, make payments, buy investments or sell investments. The application is a financial management and tracking system, not a payment or trading platform.
+
+### 8.5 Privacy requirements for the voice assistant
+
+This part is extremely important because the application deals with sensitive financial information.
+
+I recommend the following:
+
+- The microphone should have a clearly visible active state.
+- The user must be able to turn off wake-word listening.
+- The user should be able to use push-to-talk instead.
+- Raw audio should not be stored by default.
+- Personal financial records should not be sent to an external AI service without explicit disclosure and consent.
+- Commands involving money or records should be processed with predictable validation and confirmation.
+- The user should be able to see what action the assistant is about to perform.
+- The application should never listen secretly.
+
+Where possible, wake-word recognition and basic command processing should happen on the device. More complex conversational analysis can be considered separately, with an explicit privacy decision.
+
+### 8.6 A technical reality about background wake words
+
+There is one significant implementation constraint that should be planned for now.
+
+A mobile application cannot be assumed to have unrestricted access to the microphone while it is in the background.
+
+Android restricts starting microphone foreground services from the background, and newer versions impose further checks on microphone access. Apple's iOS background execution is also limited to permitted execution modes; it does not provide a general-purpose guarantee that any third-party app can continuously listen for its own wake phrase.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://developer.android.com\&sz=32)
+
+Android Developers+2
+
+
+
+Therefore, I recommend a staged approach:
+
+Initial release
+
+- Push-to-talk.
+- Assistant button.
+- Wake-word activation while the app is active, where supported.
+- On-device command recognition where practical.
+
+Later enhancement
+
+- Investigate background wake-word detection separately for Android and iOS.
+- Make it opt-in.
+- Test battery use, microphone indicators, platform restrictions and behaviour across device manufacturers.
+- Provide a reliable fallback whenever background recognition is unavailable.
+
+We should not make a product promise that "Hey [app name]" will work continuously from the locked screen on every Android and iPhone. That cannot be guaranteed by the normal mobile app architecture.
+
+## 9. Mobile experience and visual design
+
+We should design this product for the phone from the beginning.
+
+It should not be a desktop-style financial dashboard compressed into a narrow screen.
+
+### 9.1 Separate visual identities
+
+The two environments should have recognisably different identities.
+
+For example:
+
+| Design area          | Money Management                    | Investment Management                   |
+| -------------------- | ----------------------------------- | --------------------------------------- |
+| Primary mood         | Calm, clear and practical           | Analytical, composed and precise        |
+| Main emphasis        | Spending and available money        | Portfolio and performance               |
+| Main interactions    | Quick entry and budget review       | Holding review and investment analysis  |
+| Main visual elements | Budget progress, balances and bills | Allocation charts, holdings and returns |
+| Navigation           | Money-related actions               | Investment-related tools                |
+
+The colours should distinguish the environments without making them look like unrelated products.
+
+I would choose restrained, professional colours rather than intense neon colours, excessive gradients or stereotypical AI interface styling.
+
+### 9.2 Mobile navigation
+
+Each environment should have its own navigation structure.
+
+The Money Management navigation should make the most common activities immediately accessible: viewing the dashboard, recording activity, checking budgets and reviewing financial insights.
+
+The Investment Management navigation should prioritise the portfolio, holdings, investment activity, income and analysis.
+
+The global Assistant and environment switcher should remain accessible without taking too much screen space.
+
+The main navigation must not become overcrowded with every available module.
+
+### 9.3 Quick actions
+
+Quick actions should reduce the number of steps needed for common tasks.
+
+In Money Management, these might include:
+
+- Add expense.
+- Add income.
+- Transfer money.
+- View budget.
+- Add savings.
+
+In Investment Management:
+
+- Add investment.
+- Record purchase.
+- Record sale.
+- Record dividend.
+- Update valuation.
+
+Do not hide important actions behind multiple menus.
+
+### 9.4 Haptic feedback
+
+Use subtle haptic feedback for meaningful interactions:
+
+- Environment switching.
+- Successful transaction confirmation.
+- Completing a goal.
+- Reaching a defined budget threshold.
+- Saving an investment record.
+
+Avoid continuous vibration or excessive feedback.
+
+### 9.5 Dark and light themes
+
+The application should support:
+
+- Light mode.
+- Dark mode.
+- Follow system preference.
+
+Both environments should be fully designed in both themes.
+
+Dark mode should not simply be a black background with bright coloured text. Text, borders, charts, secondary values and transaction indicators should remain easy to distinguish.
+
+### 9.6 Accessibility
+
+The app must not rely solely on colour or gestures.
+
+Include:
+
+- Screen-reader labels.
+- Sufficient text contrast.
+- Adjustable text scaling.
+- Clear touch targets.
+- Reduced-motion support.
+- Text labels for financial chart indicators.
+- An accessible alternative to the environment-switch gesture.
+- Clear distinction between positive, negative and neutral values.
+
+For example, investment losses should not be represented by red alone. The interface should also show a minus sign and descriptive text.
+
+### 9.7 Mobile performance
+
+The application should feel responsive even when users have years of transaction records.
+
+Important performance requirements include:
+
+- Fast opening.
+- Smooth scrolling.
+- Responsive charts.
+- No unnecessary full-screen refreshes.
+- Efficient transaction filtering.
+- Quick switching between environments.
+- Stable offline operation.
+- No long waiting periods for simple calculations.
+
+A user should not have to wait for an external AI service to calculate how much they spent in a category. Basic financial calculations should happen within the app's financial engine.
+
+## 10. Kenya-first, globally ready
+
+The application should launch with Kenya as its initial market, but it must not be designed so narrowly that international expansion requires rebuilding core financial functions.
+
+### 10.1 Kenya-first defaults
+
+On first setup, the app should support:
+
+- Country: Kenya.
+- Default currency: KES.
+- Kenyan date and number conventions.
+- Kenyan-style financial categories.
+- Manual M-PESA wallet records.
+- Local banks and savings accounts as manually recorded accounts.
+- HELB and other personal loans.
+- SACCO shares and deposits.
+- Kenyan money market funds.
+- Treasury bills and government bonds.
+- NSE-listed shares and REITs.
+
+It should include categories relevant to local spending, such as rent, food, fare, fuel, airtime, data, water, electricity, SHA, education and household expenses.
+
+Categories should be editable. Not every Kenyan user has the same expenses.
+
+### 10.2 Manual M-PESA tracking
+
+The application should allow a user to create an M-PESA account as a manually maintained financial account.
+
+They should be able to record:
+
+- Money received.
+- Payments.
+- Withdrawals.
+- Deposits.
+- Transfers.
+- Airtime.
+- Transaction fees.
+- Other relevant M-PESA activity.
+
+The app must not request SMS-reading permission or use M-PESA API synchronisation in the first release.
+
+The user remains responsible for adding or correcting their entries.
+
+### 10.3 Multi-currency support
+
+The financial foundation should support more than KES.
+
+For example:
+
+- KES.
+- USD.
+- EUR.
+- GBP.
+- TZS.
+- UGX.
+- ZAR.
+- Other international currencies.
+
+A user should be able to set a primary currency while holding investments denominated in other currencies.
+
+For example, a Kenyan investor might hold:
+
+- NSE shares in KES.
+- US stocks in USD.
+- A European ETF in EUR.
+- Cryptocurrency denominated in USD.
+
+The app should show:
+
+- Original currency and value.
+- Exchange rate used.
+- Primary-currency equivalent.
+- Exchange-rate date.
+
+If a user manually supplies an exchange rate, this must be distinguishable from a rate fetched from a market data source.
+
+### 10.4 Market data should be introduced carefully
+
+Eventually, the app could retrieve publicly available market prices for supported securities.
+
+That does not require the app to connect to a user's broker or import their transactions.
+
+However, market data involves provider coverage, licensing, reliability and possible costs.
+
+It should therefore be a separate capability with transparent data sources and update times.
+
+For the initial release, manually entered valuations are acceptable. Where a user enters a holding's current value, the app should keep the date and source of that valuation.
+
+### 10.5 Country and financial settings
+
+The app should be designed so users can later configure:
+
+- Country.
+- Primary currency.
+- Financial year.
+- Date format.
+- Number format.
+- Relevant asset classes.
+- Local investment terminology.
+- Tax assumptions.
+
+Tax-related calculations should be country-specific and explicitly labelled. The app should not silently apply Kenyan tax rules to someone who lives elsewhere.
+
+## 11. Onboarding and the first-use experience
+
+Onboarding should teach the user how the application works without asking for a large amount of information before they can start.
+
+I would make onboarding a guided process, with the ability to skip optional information and return to it later.
+
+### Step 1: Introduce the product
+
+Explain that the application contains two financial environments:
+
+- Money Management.
+- Investment Management.
+
+A short introduction should explain how to switch between them.
+
+Do not bury this interaction in a help page. It is fundamental to the product's identity.
+
+### Step 2: Configure the user's financial settings
+
+Ask for the essential preferences:
+
+- Country.
+- Primary currency.
+- Preferred theme.
+- First environment to open.
+- Whether the user wants voice features enabled.
+
+For the initial Kenyan release, KES should be preselected.
+
+### Step 3: Set up Money Management
+
+Guide the user through adding their first account.
+
+Examples:
+
+- Cash.
+- Bank.
+- M-PESA.
+- Savings.
+
+Then ask whether they want to enter their starting balance.
+
+A starting balance should not be recorded as monthly income. It represents money the user already had when beginning to use the app.
+
+### Step 4: Build the first budget
+
+Offer a simple starting structure.
+
+Ask for expected monthly income and a few common spending categories.
+
+The app should help the user create a workable budget without requiring every possible category to be completed.
+
+Users should be able to refine their budgets later.
+
+### Step 5: Set savings and debt details
+
+Ask whether the user wants to add any existing savings goals or outstanding debts.
+
+This should be optional.
+
+The app must not force a user to disclose every debt or financial asset to access the main features.
+
+### Step 6: Set up Investment Management
+
+Let users create their first investment account or holding.
+
+For example, they might enter:
+
+- An NSE share.
+- A money market fund.
+- A Treasury bill.
+- A SACCO deposit.
+- A property investment.
+
+The application should explain the difference between entering an asset and recording a new investment purchase.
+
+### Step 7: Introduce privacy and data controls
+
+Explain:
+
+- Where financial information is stored.
+- Whether data is synchronised.
+- How to export records.
+- How to back up and restore data.
+- How to use the app lock.
+- How voice processing works.
+- How to delete the user's information.
+
+Users should understand these choices before entering sensitive financial data.
+
+### Step 8: Enter the correct environment
+
+The user arrives at their selected environment.
+
+The onboarding should end with a usable dashboard, not a long series of promotional screens.
+
+## 12. Privacy, security and data ownership
+
+The privacy-first approach is not just a differentiating selling point. It should influence every major product and architecture decision.
+
+The proposed product principle remains:
+
+> Your money. Your device. Your data.
+
+### 12.1 Local-first storage
+
+I recommend that the financial records be stored locally on the user's phone by default.
+
+The application should be useful without requiring a constant internet connection.
+
+This means:
+
+- Recording transactions should work offline.
+- Reviewing budgets should work offline.
+- Viewing previously recorded investments should work offline.
+- Financial calculations should work offline.
+- Editing goals and debts should work offline.
+- The user should be able to review historical reports offline.
+
+Actual Budget's local-first design is useful evidence that an offline-oriented personal finance product is a viable design direction.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://actualbudget.org\&sz=32)
+
+Actual Budget+1
+
+
+
+The exact data-storage and backup design will need to be chosen by the development team, but it should be designed around user ownership rather than treating a remote account as the only source of truth.
+
+### 12.2 Encryption and app lock
+
+Financial records are sensitive.
+
+The application should provide:
+
+- Protected local financial storage.
+- An optional biometric app lock.
+- A PIN fallback where appropriate.
+- Automatic relocking after a period of inactivity.
+- The ability to hide sensitive information from app previews.
+- Secure handling of exported backup files.
+
+The user should be able to decide whether the application requires biometric authentication every time it opens or after a selected period.
+
+### 12.3 User-controlled backups
+
+Local storage creates an important responsibility: users need a way to recover their records when they change phones or lose a device.
+
+The app should support:
+
+- Full financial data export.
+- Backup creation.
+- Restore from backup.
+- Clear indication of the backup date.
+- A warning before overwriting existing data during restoration.
+
+I recommend an encrypted backup format for sensitive information.
+
+A later version could introduce optional end-to-end encrypted synchronisation between devices, provided users can opt in and the data remains protected.
+
+### 12.4 No selling financial data
+
+The privacy commitment should mean:
+
+- No selling personal financial data.
+- No sharing individual financial records with advertisers.
+- No advertising profiles derived from spending behaviour.
+- No hidden third-party financial data collection.
+- No unnecessary access to contacts, SMS or other device information.
+
+The application should also avoid analytics systems that capture actual transaction descriptions, account balances or other confidential records.
+
+### 12.5 Voice privacy
+
+Voice access should not create a loophole in the privacy model.
+
+The user must understand whether the assistant is listening, where voice processing happens and whether any speech is transmitted outside the phone.
+
+The user should be able to use the financial application without ever enabling the microphone.
+
+### 12.6 Authentication and accounts
+
+For a local-first first release, I recommend allowing the user to begin without mandatory registration.
+
+That would make the app easier to start using and reduce the amount of personal information collected.
+
+If accounts or encrypted cloud synchronisation are introduced later, they should be optional and clearly explained.
+
+This is a product recommendation, rather than an already-set requirement. The exact backup and device-transfer experience will influence the final authentication decision.
+
+### 12.7 Offline-first does not mean no internet
+
+Some features may eventually require an internet connection, such as retrieving public market prices or downloading an optional update.
+
+Those features should be isolated from personal financial storage.
+
+The user should be able to see when a feature requires connectivity, and the app should never imply that a stale market price is a live one.
+
+## 13. What should be included in the first release?
+
+This is where I would be disciplined.
+
+The vision is broad, but trying to build every feature immediately could produce a large application with unreliable calculations and unfinished interactions.
+
+I recommend building the first release around the two environments, the shared financial foundation and the most valuable functions in each environment.
+
+### 13.1 First release: essential functionality
+
+Core release
+
+| Feature                 | First-release requirement                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| Two environments        | Separate Money Management and Investment Management                                    |
+| Environment switching   | Pull-down gesture, visible fallback control and smooth transition                      |
+| User preferences        | Country, currency, theme and environment preference                                    |
+| Money dashboard         | Account balances, income, expenses, budget status and recent transactions              |
+| Accounts                | Cash, bank, M-PESA, savings and manually maintained accounts                           |
+| Transactions            | Income, expenses, transfers, refunds, transaction splits and editing                   |
+| Categories              | Editable categories with Kenyan defaults                                               |
+| Budgets                 | Category budgets, flexible budgets and basic zero-based allocation                     |
+| Recurring payments      | Manual recurring schedules and in-app calendar                                         |
+| Savings goals           | Targets, progress and contribution calculations                                        |
+| Debt                    | Multiple debts, repayment tracking and basic payoff calculator                         |
+| Investment dashboard    | Portfolio value, holdings, contributions, gains and investment income                  |
+| Investment accounts     | Multiple portfolios and manually managed accounts                                      |
+| Holdings                | Stocks, ETFs, MMFs, Treasury bills, government bonds, SACCOs, crypto and custom assets |
+| Investment transactions | Purchases, sales, dividends, interest, fees and withdrawals                            |
+| Asset valuations        | Manual valuation and valuation history                                                 |
+| Investment analysis     | Basic returns, asset allocation and historical portfolio value                         |
+| Net worth               | Total assets, liabilities and net worth                                                |
+| Multi-currency          | KES as the starting currency, with foreign currency support                            |
+| Assistant               | Push-to-talk, navigation, financial questions and confirmed transaction creation       |
+| Privacy                 | Local-first storage, app lock, offline functionality and data export                   |
+| Backup                  | User-controlled backup and restoration                                                 |
+| Accessibility           | Screen-reader support, readable text and alternative environment switching             |
+
+The first release should not include every advanced analytical feature. It must, however, have a reliable foundation capable of supporting them.
+
+### 13.2 Features for the next development stage
+
+Expansion stage
+
+| Feature                        | Why it belongs here                                   |
+| ------------------------------ | ----------------------------------------------------- |
+| More advanced forecasting      | Requires reliable financial history                   |
+| Wealth velocity                | Requires historical net worth snapshots               |
+| Financial freedom tracker      | Requires investment projections and assumptions       |
+| What-if simulator              | Requires deeper budgeting and investment calculations |
+| Advanced dividend projections  | Requires reliable holding and income information      |
+| Portfolio risk analysis        | Requires consistent asset classifications             |
+| Financial health overview      | Requires sufficient user-entered financial data       |
+| Advanced financial timeline    | Requires milestone and historical records             |
+| Investment watchlists          | More valuable after core holdings work reliably       |
+| Financial education library    | Helps beginners understand their financial decisions  |
+| Improved voice conversations   | Builds on the initial command system                  |
+| More advanced voice activation | Requires separate Android and iOS feasibility work    |
+
+### 13.3 Later enhancements
+
+Longer-term roadmap
+
+These should be considered after the core app is stable.
+
+- Optional encrypted multi-device synchronisation.
+- Additional market data providers.
+- More automatic public market-price updates.
+- Advanced investment performance calculations.
+- Country-specific tax reporting.
+- More advanced SACCO, fund and fixed-income tracking.
+- Investment benchmark comparisons.
+- Advanced corporate-action handling.
+- Optional operating-system voice assistant integrations.
+- Advanced background wake-word activation where supported.
+- Additional languages and country-specific financial categories.
+- More sophisticated financial simulations.
+
+The sequence matters. For example, advanced portfolio analytics are only as reliable as the investment transactions and valuations underneath them.
+
+### 13.4 Things that must remain out of the first release
+
+I am preserving the original product boundaries:
+
+| Excluded from V1                              | Reason                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| Bank account connections                      | The product begins with manual financial entry                            |
+| M-PESA API synchronisation                    | Outside the agreed first-release scope                                    |
+| SMS reading and automatic transaction capture | Not compatible with the chosen privacy-first model                        |
+| Bank transaction imports                      | Not part of the first release                                             |
+| Subscriptions and payments to use the app     | The initial product launches free                                         |
+| Shared and family accounts                    | Outside the initial product scope                                         |
+| Push notifications                            | Use in-app information and calendars initially                            |
+| Making payments                               | The app records and manages financial information; it does not move money |
+| Executing investment trades                   | The app tracks investments; it is not a brokerage platform                |
+| Mandatory AI features                         | Core financial functions must work without AI                             |
+
+An especially important point: do not allow the voice assistant to turn this into an application that executes financial transactions in the outside world. Its job is to help manage the user's records and information.
+
+## 14. The most important functional rules
+
+This is the section I would make particularly prominent in the eventual specification given to the development agent.
+
+A finance app can look excellent and still be a poor product if its calculations are wrong.
+
+The following rules should govern the shared financial foundation.
+
+### 14.1 Transfers are not income or expenses
+
+Moving KES 5,000 from a bank account to M-PESA should reduce the bank balance and increase the M-PESA balance.
+
+It should not create new income or an expense.
+
+### 14.2 Investment contributions are not ordinary expenses
+
+Moving KES 10,000 from a savings account to an investment account changes the type of asset the user holds.
+
+The money is now invested, but it has not disappeared.
+
+The budget may record that the user has allocated KES 10,000 towards investing, while the investment environment records it as capital contributed.
+
+These two records must be linked, not treated as two independent financial events.
+
+### 14.3 Debt principal and interest must be separated
+
+When a user pays KES 5,000 towards a loan, the whole payment should not automatically be treated as an expense.
+
+If KES 4,000 reduces the principal and KES 1,000 is interest:
+
+- Debt reduces by KES 4,000.
+- Interest expense increases by KES 1,000.
+- Cash reduces by KES 5,000.
+
+This produces a more accurate view of both spending and net worth.
+
+### 14.4 Dividends and interest must be properly classified
+
+A dividend received should be recorded as investment income.
+
+If the dividend is paid into a cash account, that account's balance should increase accordingly.
+
+The same dividend should appear in the investment income report and the user's financial history without being counted twice in net worth.
+
+### 14.5 Asset valuation changes are not automatically income
+
+Suppose a user owns a property originally valued at KES 5 million.
+
+They update the estimated market value to KES 5.5 million.
+
+The application should record an estimated valuation increase of KES 500,000. It should not create KES 500,000 of ordinary cash income.
+
+Similarly, an increase in a share's market price should affect unrealised investment gain, not salary or other received income.
+
+### 14.6 Sale proceeds must be distinguished from investment gains
+
+When a user sells an asset, the full sale proceeds are not necessarily profit.
+
+The application must distinguish the original acquisition cost, sale proceeds, fees, realised gain or loss, and any relevant investment income.
+
+### 14.7 Every currency conversion must preserve the original record
+
+A USD investment should remain recorded in USD.
+
+The app can display its KES equivalent, but it must not silently change the original transaction value when exchange rates move.
+
+### 14.8 Historical records must remain historically accurate
+
+If a user corrects a previous transaction or changes an asset valuation, the application should update the appropriate historical information without creating misleading records.
+
+The app should maintain a clear history of what changed and when.
+
+## 15. How we will know the product is exceptional
+
+I would use the following product acceptance standards before considering the first release ready.
+
+| Area                  | What must work correctly                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| Environment switching | Users can move between both environments reliably without accidental switches                     |
+| Navigation            | Every main screen and control works as intended                                                   |
+| Transaction creation  | Entries immediately update the correct accounts and reports                                       |
+| Transaction editing   | Users can correct, split and undo financial records                                               |
+| Budget calculations   | Spending, remaining amounts and rollovers are accurate                                            |
+| Recurring payments    | Payments do not appear twice when marked as paid                                                  |
+| Savings               | Goal contributions update progress correctly                                                      |
+| Debt                  | Principal, interest and outstanding balances are correct                                          |
+| Investments           | Purchases, sales, fees and income update holdings accurately                                      |
+| Portfolio performance | Contributions and returns are not confused                                                        |
+| Net worth             | Transfers do not artificially increase or decrease wealth                                         |
+| Currency              | Original currency and converted value are distinguishable                                         |
+| Voice                 | Commands are understood, actions are confirmed and financial records are not changed accidentally |
+| Privacy               | Users can access their financial records offline and control their data                           |
+| Backup                | Users can restore their financial records successfully                                            |
+| Accessibility         | Essential functionality is usable without relying on gestures alone                               |
+
+### Practical scenarios the development agent must test
+
+These are more useful than simply asking the agent whether all buttons have been implemented.
+
+Scenario 1: First-time user
+
+A new user installs the app, selects Kenya and KES, records a cash balance, creates a monthly budget and opens Investment Management.
+
+Expected result: the user can access both environments without needing a bank connection or mandatory financial-data import.
+
+Scenario 2: Record an expense
+
+The user records KES 500 for food from M-PESA.
+
+Expected result: M-PESA balance decreases by KES 500, the food budget increases its spent amount by KES 500, and the transaction appears in the correct history.
+
+Scenario 3: Transfer money
+
+The user transfers KES 2,000 from a bank account to M-PESA.
+
+Expected result: the bank balance decreases and M-PESA increases. Total assets remain unchanged, apart from any separately recorded transfer fee.
+
+Scenario 4: Invest money
+
+The user moves KES 5,000 from their bank account to an investment account and records an investment purchase.
+
+Expected result: the movement is not counted as an ordinary expense. Investment capital and account balances update correctly.
+
+Scenario 5: Receive a dividend
+
+The user records a dividend of KES 1,000.
+
+Expected result: investment income increases by KES 1,000, the receiving account increases by KES 1,000, and the dividend appears in the income history.
+
+Scenario 6: Pay debt
+
+The user pays KES 3,000 towards a loan, consisting of KES 2,500 principal and KES 500 interest.
+
+Expected result: the outstanding debt decreases by KES 2,500, interest expense increases by KES 500 and the cash account decreases by KES 3,000.
+
+Scenario 7: Use the assistant
+
+The user says, "Record 600 shillings for transport."
+
+Expected result: the assistant prepares the transaction, shows its amount and category, asks for confirmation and saves it only after approval.
+
+Scenario 8: Switch environments
+
+The user pulls down from the designated switching area while in Money Management.
+
+Expected result: Investment Management opens through the transition. Scrolling a transaction list must not trigger the switch.
+
+Scenario 9: Offline operation
+
+The user enables airplane mode.
+
+Expected result: the user can still access existing financial records, record transactions, update budgets and view previously saved investment information. Features requiring current external market data should clearly report that they cannot refresh.
+
+Scenario 10: Recover financial data
+
+The user exports a backup, removes the application and restores their records on a supported installation.
+
+Expected result: the financial data, history, categories and essential settings are correctly restored without accidental duplication.
+
+## 16. What will make this app genuinely different?
+
+I would focus on five differentiators rather than trying to invent 50 features that no one uses.
+
+### 1. Two environments that genuinely feel independent
+
+The pull-down transition should be memorable, but the quality of the two environments matters more than the animation itself.
+
+Money Management should make everyday decisions easier.
+
+Investment Management should make long-term wealth decisions clearer.
+
+This distinction is the product's defining experience.
+
+### 2. A financial system that understands where money goes
+
+Most people do not need another chart telling them how much they spent.
+
+They need to understand the difference between spending, saving, investing, transferring and paying debt.
+
+Your shared financial engine should make those distinctions accurately.
+
+It should be possible to follow money from income, through budgeting and saving, into investments, and eventually into investment income and total net worth.
+
+### 3. A voice assistant that can actually manage the application
+
+A good assistant should eliminate unnecessary navigation and make routine financial actions easier.
+
+It should be able to answer meaningful questions using the user's recorded financial data, navigate between environments and prepare transactions for confirmation.
+
+It should be useful rather than decorative.
+
+### 4. A complete balance-sheet perspective
+
+The app should understand more than cash and stocks.
+
+It should allow users to track investments, property, SACCO balances, business interests, debts and other assets.
+
+This is how it develops from an ordinary budget tracker into a genuine personal wealth management product.
+
+### 5. Privacy as a competitive advantage
+
+Users should not have to connect their banks or expose their financial records to advertising systems to get value from the product.
+
+They should be able to control their financial records, work offline and move their data out of the application.
+
+That is a meaningful product promise, provided the implementation lives up to it.
+
+## 17. Final product definition
+
+Here is the consolidated definition I would use as the starting point for the project.
+
+# The product
+
+A privacy-first mobile personal finance and wealth management application
+
+Core concept
+
+One mobile application with two distinct financial environments, connected by a shared financial engine and one global voice assistant.
+
+Environment 1 — Money Management
+
+A dedicated financial management system for:
+
+- Income and expense tracking.
+- Account and transaction management.
+- Budgeting and cash-flow planning.
+- Recurring payments.
+- Savings goals.
+- Debt tracking and repayment planning.
+- Spending insights and financial reports.
+
+Environment 2 — Investment Management
+
+A dedicated investment and wealth tracking system for:
+
+- Multi-asset portfolio management.
+- Holdings and investment transactions.
+- Dividends and interest income.
+- Investment performance and historical returns.
+- Asset allocation and portfolio analysis.
+- Investment goals and financial projections.
+- Property, SACCO, business and other asset tracking.
+
+Shared intelligence
+
+- Total net worth.
+- Investable net worth.
+- Financial health indicators.
+- Wealth velocity.
+- Financial timeline.
+- Financial freedom tracking.
+- What-if financial simulator.
+- Multi-currency financial calculations.
+
+Signature interaction
+
+- Pull-down environment switching.
+- Dedicated visual transition.
+- Separate navigation and dashboards.
+- Remember last-used environment.
+- One global voice assistant.
+
+Operating principles
+
+- Mobile-first Android and iOS application.
+- Kenya-first, globally expandable.
+- Manual financial entry.
+- Local-first data ownership.
+- Offline-capable financial management.
+- Free at launch.
+- No bank or M-PESA API synchronisation in V1.
+- No selling financial data.
+- No mandatory subscriptions.
+- No payments or trading execution.
+
+## 18. My recommendation for how we proceed
+
+I would not jump straight into asking a vibe-coding agent to build this entire product from a single enormous prompt.
+
+That is likely to create inconsistent navigation, incomplete calculations and features that look implemented but do not work correctly.
+
+We should turn this blueprint into a series of connected product specifications.
+
+| Specification                          | What it will define                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------- |
+| 1. Product architecture                | How the two environments and shared financial engine relate                  |
+| 2. Navigation and interaction          | Every screen, gesture, transition and navigation behaviour                   |
+| 3. Money Management specification      | Every feature, form, workflow and calculation                                |
+| 4. Investment Management specification | Holdings, instruments, transactions, performance and income                  |
+| 5. Voice assistant specification       | Wake word, commands, contextual understanding, confirmations and permissions |
+| 6. Data and privacy specification      | Financial records, storage, calculations, export, backup and security        |
+| 7. Design specification                | Visual system, mobile layouts, themes and component behaviour                |
+| 8. Functional acceptance criteria      | How every feature is tested before release                                   |
+
+My recommendation is to settle the product architecture first, then fully specify the two environments separately. This protects the central concept: two independent mobile experiences supported by one accurate financial system.
+
+I would treat this blueprint as our working product definition, not yet the final instruction to your vibe-coding agent. The next specification should go screen by screen, explaining every screen's purpose, every visible component, every interaction and every expected result. No code is needed in that specification; it should tell the development agent exactly what to build and how it must behave.
