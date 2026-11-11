@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Flag
@@ -45,6 +46,12 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import com.example.data.NumoFinancialEngine
+import com.example.ui.components.HeyNumoVoiceAssistantModal
+import com.example.ui.components.NotificationsBellModal
+import com.example.ui.components.QuickServicesModal
+import com.example.ui.components.ReceiveMoneyModal
+import com.example.ui.components.SendMoneyModal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -94,18 +101,33 @@ fun HomeScreen(
   currency: String = "KES",
   onNavigateToAnalytics: () -> Unit = {},
   onNavigateToCalendar: () -> Unit = {},
-  onNavigateToInsights: () -> Unit = {}
+  onNavigateToInsights: () -> Unit = {},
+  onNavigateToProfile: () -> Unit = {},
+  onNavigateToGoals: () -> Unit = {},
+  onNavigateToBudget: () -> Unit = {}
 ) {
-  var isBalanceVisible by remember { mutableStateOf(true) }
+  var showSendModal by remember { mutableStateOf(false) }
+  var showReceiveModal by remember { mutableStateOf(false) }
+  var showMoreModal by remember { mutableStateOf(false) }
+  var showEditBudgetModal by remember { mutableStateOf(false) }
+  var showNotificationsModal by remember { mutableStateOf(false) }
+  var showVoiceAssistant by remember { mutableStateOf(false) }
+
   val scrollState = rememberScrollState()
 
+  // Pull live values from central financial engine
+  val totalBudget = NumoFinancialEngine.monthlyBudgetTarget.toInt()
+  val spent = NumoFinancialEngine.totalSpent.toInt()
+  val remaining = NumoFinancialEngine.totalRemaining.toInt()
+
   // Dynamic animated financial counters
-  val animatedTotalBudget = animateIntCount(targetValue = 120000, durationMillis = 850)
-  val animatedSpent = animateIntCount(targetValue = 78420, durationMillis = 850)
-  val animatedRemaining = animateIntCount(targetValue = 41580, durationMillis = 850)
+  val animatedTotalBudget = animateIntCount(targetValue = totalBudget, durationMillis = 850)
+  val animatedSpent = animateIntCount(targetValue = spent, durationMillis = 850)
+  val animatedRemaining = animateIntCount(targetValue = remaining, durationMillis = 850)
 
   // Animated progress bar
-  val animatedProgressFraction = animateProgress(targetProgress = 0.6535f, delayMillis = 180, durationMillis = 950)
+  val progressFraction = (spent.toFloat() / totalBudget.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
+  val animatedProgressFraction = animateProgress(targetProgress = progressFraction, delayMillis = 180, durationMillis = 950)
 
   // Animated Donut Chart sweep progress (0f -> 1f)
   val donutChartProgress = animateProgress(targetProgress = 1f, delayMillis = 250, durationMillis = 1000)
@@ -181,7 +203,7 @@ fun HomeScreen(
                 .clip(CircleShape)
                 .background(Color.White)
                 .border(1.dp, Color(0xFFE2E8F0), CircleShape)
-                .bouncyClickable { /* Notifications */ },
+                .bouncyClickable { showNotificationsModal = true },
               contentAlignment = Alignment.Center
             ) {
               Icon(
@@ -202,7 +224,7 @@ fun HomeScreen(
                 .size(42.dp)
                 .clip(CircleShape)
                 .border(1.5.dp, Color(0xFF00C884).copy(alpha = 0.5f), CircleShape)
-                .bouncyClickable { /* Profile */ },
+                .bouncyClickable { onNavigateToProfile() },
               contentScale = ContentScale.Crop
             )
           }
@@ -252,7 +274,7 @@ fun HomeScreen(
                 modifier = Modifier
                   .clip(RoundedCornerShape(12.dp))
                   .background(Color.White.copy(alpha = 0.22f))
-                  .bouncyClickable { /* Edit Budget */ }
+                  .bouncyClickable { showEditBudgetModal = true }
                   .padding(horizontal = 14.dp, vertical = 5.dp)
               ) {
                 Text(
@@ -271,7 +293,7 @@ fun HomeScreen(
               verticalAlignment = Alignment.CenterVertically
             ) {
               Text(
-                text = if (isBalanceVisible) "$currency ${formatAmount(animatedTotalBudget)}" else "$currency ••••••",
+                text = if (NumoFinancialEngine.isBalanceVisible) "$currency ${formatAmount(animatedTotalBudget)}" else "$currency ••••••",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.SansSerif,
@@ -282,11 +304,11 @@ fun HomeScreen(
                 modifier = Modifier
                   .size(28.dp)
                   .clip(CircleShape)
-                  .bouncyClickable { isBalanceVisible = !isBalanceVisible },
+                  .bouncyClickable { NumoFinancialEngine.isBalanceVisible = !NumoFinancialEngine.isBalanceVisible },
                 contentAlignment = Alignment.Center
               ) {
                 Icon(
-                  imageVector = if (isBalanceVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                  imageVector = if (NumoFinancialEngine.isBalanceVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                   contentDescription = "Toggle Balance",
                   tint = Color.White.copy(alpha = 0.85f),
                   modifier = Modifier.size(20.dp)
@@ -343,12 +365,12 @@ fun HomeScreen(
             icon = Icons.AutoMirrored.Outlined.Send,
             label = "Send",
             isRotated = true,
-            onClick = {}
+            onClick = { showSendModal = true }
           )
           QuickActionButton(
             icon = Icons.Outlined.FileDownload,
             label = "Receive",
-            onClick = {}
+            onClick = { showReceiveModal = true }
           )
           QuickActionButton(
             icon = Icons.Outlined.Description,
@@ -358,7 +380,7 @@ fun HomeScreen(
           QuickActionButton(
             icon = Icons.Default.MoreHoriz,
             label = "More",
-            onClick = onNavigateToAnalytics
+            onClick = { showMoreModal = true }
           )
         }
 
@@ -719,38 +741,25 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Horizontal Carousel with snapping card feel
+        // Horizontal Carousel with live goals from financial engine
         LazyRow(
           horizontalArrangement = Arrangement.spacedBy(14.dp),
           modifier = Modifier
             .fillMaxWidth()
             .staggeredEntrance(index = 5, baseDelayMs = 220)
         ) {
-          item {
+          items(NumoFinancialEngine.goals) { g ->
             GoalCarouselCard(
-              title = "Emergency Fund",
-              saved = "$currency 320,000",
-              target = "$currency 500,000",
-              progress = 0.64f,
-              color = Color(0xFF02844E)
-            )
-          }
-          item {
-            GoalCarouselCard(
-              title = "Land Investment",
-              saved = "$currency 450,000",
-              target = "$currency 1,200,000",
-              progress = 0.375f,
-              color = Color(0xFF0084FF)
-            )
-          }
-          item {
-            GoalCarouselCard(
-              title = "Car Upgrade",
-              saved = "$currency 180,000",
-              target = "$currency 600,000",
-              progress = 0.30f,
-              color = Color(0xFFF59E0B)
+              title = g.title,
+              saved = "$currency ${formatAmount(g.savedAmount.toInt())}",
+              target = "$currency ${formatAmount(g.targetAmount.toInt())}",
+              progress = (g.savedAmount.toFloat() / g.targetAmount.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f),
+              color = when (g.iconType) {
+                "Flight" -> Color(0xFF0084FF)
+                "Laptop" -> Color(0xFF8B5CF6)
+                else -> Color(0xFF02844E)
+              },
+              onClick = onNavigateToGoals
             )
           }
         }
@@ -779,7 +788,10 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
           ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.bouncyClickable { onNavigateToProfile() }
+            ) {
               Image(
                 painter = painterResource(id = R.drawable.img_user_avatar),
                 contentDescription = "User Avatar",
@@ -830,7 +842,7 @@ fun HomeScreen(
                   .size(34.dp)
                   .clip(CircleShape)
                   .background(Color(0xFFF1F5F9))
-                  .bouncyClickable { /* Notifications */ },
+                  .bouncyClickable { showNotificationsModal = true },
                 contentAlignment = Alignment.Center
               ) {
                 Icon(
@@ -845,11 +857,85 @@ fun HomeScreen(
         }
       }
 
+      // Floating Action Button for "Hey Numo" Voice Assistant
+      Box(
+        modifier = Modifier
+          .align(Alignment.BottomEnd)
+          .padding(end = 20.dp, bottom = 24.dp)
+          .size(54.dp)
+          .shadow(8.dp, CircleShape)
+          .clip(CircleShape)
+          .background(Color(0xFF02844E))
+          .bouncyClickable { showVoiceAssistant = true }
+          .testTag("fab_hey_numo"),
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(
+          imageVector = Icons.Default.Mic,
+          contentDescription = "Hey Numo",
+          tint = Color.White,
+          modifier = Modifier.size(26.dp)
+        )
+      }
+
       // Top 2dp Scroll Progress Indicator
       TopScrollProgressBar(
         scrollProgress = scrollProgress,
         modifier = Modifier.align(Alignment.TopCenter)
       )
+
+      // MODALS
+      if (showSendModal) {
+        SendMoneyModal(
+          currency = currency,
+          onDismiss = { showSendModal = false },
+          onSentSuccess = {}
+        )
+      }
+
+      if (showReceiveModal) {
+        ReceiveMoneyModal(
+          currency = currency,
+          onDismiss = { showReceiveModal = false }
+        )
+      }
+
+      if (showMoreModal) {
+        QuickServicesModal(
+          currency = currency,
+          onDismiss = { showMoreModal = false },
+          onOpenCalendar = onNavigateToCalendar,
+          onOpenSend = { showSendModal = true }
+        )
+      }
+
+      if (showNotificationsModal) {
+        NotificationsBellModal(
+          currency = currency,
+          onDismiss = { showNotificationsModal = false },
+          onPayBill = onNavigateToCalendar,
+          onRebalance = onNavigateToBudget
+        )
+      }
+
+      if (showEditBudgetModal) {
+        EditBudgetDialog(
+          currentBudget = NumoFinancialEngine.monthlyBudgetTarget.toInt(),
+          currency = currency,
+          onDismiss = { showEditBudgetModal = false },
+          onSave = { newBudget ->
+            NumoFinancialEngine.updateMonthlyBudget(newBudget.toDouble())
+            showEditBudgetModal = false
+          }
+        )
+      }
+
+      if (showVoiceAssistant) {
+        HeyNumoVoiceAssistantModal(
+          currency = currency,
+          onDismiss = { showVoiceAssistant = false }
+        )
+      }
     }
   }
 }
@@ -934,7 +1020,8 @@ fun GoalCarouselCard(
   saved: String,
   target: String,
   progress: Float,
-  color: Color
+  color: Color,
+  onClick: () -> Unit = {}
 ) {
   val animatedGoalProgress = animateProgress(targetProgress = progress, delayMillis = 200, durationMillis = 800)
 
@@ -945,7 +1032,7 @@ fun GoalCarouselCard(
       .clip(RoundedCornerShape(18.dp))
       .background(Color.White)
       .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(18.dp))
-      .bouncyClickable { /* Open Goal */ }
+      .bouncyClickable { onClick() }
       .padding(14.dp)
   ) {
     Column {

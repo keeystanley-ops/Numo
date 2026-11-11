@@ -82,6 +82,8 @@ import com.example.ui.animation.bouncyClickable
 import com.example.ui.animation.formatAmount
 import com.example.ui.animation.staggeredEntrance
 
+import com.example.data.NumoFinancialEngine
+
 /**
  * Budget Screen matching Screen 6 & Transactions from the provided reference mockup.
  * Features:
@@ -106,10 +108,10 @@ fun BudgetScreen(
 
   val scrollState = rememberScrollState()
 
-  // Financial values
-  var monthlyBudget by remember { mutableIntStateOf(120000) }
-  val spentAmount = 78420
-  val remainingAmount = (monthlyBudget - spentAmount).coerceAtLeast(0)
+  // Financial values pulled live from NumoFinancialEngine
+  val monthlyBudget = NumoFinancialEngine.monthlyBudgetTarget.toInt()
+  val spentAmount = NumoFinancialEngine.totalSpent.toInt()
+  val remainingAmount = NumoFinancialEngine.totalRemaining.toInt()
 
   val animatedBudget = animateIntCount(monthlyBudget, durationMs = 900)
   val animatedSpent = animateIntCount(spentAmount, durationMs = 850)
@@ -396,108 +398,86 @@ fun BudgetScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Category Limit Cards exactly from mockup:
-        // 1. Food & Dining: KES 30,000, 70%
-        CategoryLimitItem(
-          title = "Food & Dining",
-          limitAmount = 30000,
-          percentage = 70,
-          currency = currency,
-          icon = Icons.Default.Restaurant,
-          iconColor = Color(0xFF02844E),
-          iconBg = Color(0xFFE8F8F2),
-          barColor = Color(0xFF02844E),
-          delayMs = 80
-        )
+        // Category Limit Cards dynamically driven by NumoFinancialEngine
+        NumoFinancialEngine.categories.take(3).forEachIndexed { index, cat ->
+          CategoryLimitItem(
+            title = cat.name,
+            limitAmount = cat.limit.toInt(),
+            percentage = cat.percentage,
+            currency = currency,
+            icon = when (cat.iconName) {
+              "Car" -> Icons.Default.DirectionsCar
+              "Bag" -> Icons.Default.ShoppingBag
+              else -> Icons.Default.Restaurant
+            },
+            iconColor = Color(cat.colorHex),
+            iconBg = Color(cat.colorHex).copy(alpha = 0.15f),
+            barColor = Color(cat.colorHex),
+            delayMs = 80 + index * 40
+          )
+          Spacer(modifier = Modifier.height(12.dp))
+        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 2. Transport: KES 20,000, 60%
-        CategoryLimitItem(
-          title = "Transport",
-          limitAmount = 20000,
-          percentage = 60,
-          currency = currency,
-          icon = Icons.Default.DirectionsCar,
-          iconColor = Color(0xFF2563EB),
-          iconBg = Color(0xFFEFF6FF),
-          barColor = Color(0xFF2563EB),
-          delayMs = 120
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 3. Shopping: KES 25,000, 50%
-        CategoryLimitItem(
-          title = "Shopping",
-          limitAmount = 25000,
-          percentage = 50,
-          currency = currency,
-          icon = Icons.Default.ShoppingBag,
-          iconColor = Color(0xFFF59E0B),
-          iconBg = Color(0xFFFEF3C7),
-          barColor = Color(0xFFF59E0B),
-          delayMs = 160
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // ==========================================
         // 3. OVERSPENDING ALERT BANNER (Screen 6)
         // ==========================================
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .staggeredEntrance(delayMs = 200)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFFFF1F2))
-            .border(1.dp, Color(0xFFFECDD3), RoundedCornerShape(16.dp))
-            .bouncyClickable { showRebalanceDialog = true }
-            .padding(16.dp)
-            .testTag("card_overspend_alert")
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically
+        if (NumoFinancialEngine.isOverspendAlertActive) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .staggeredEntrance(delayMs = 200)
+              .clip(RoundedCornerShape(16.dp))
+              .background(Color(0xFFFFF1F2))
+              .border(1.dp, Color(0xFFFECDD3), RoundedCornerShape(16.dp))
+              .bouncyClickable { showRebalanceDialog = true }
+              .padding(16.dp)
+              .testTag("card_overspend_alert")
           ) {
-            Box(
-              modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFFEE2E2)),
-              contentAlignment = Alignment.Center
+            Row(
+              verticalAlignment = Alignment.CenterVertically
             ) {
+              Box(
+                modifier = Modifier
+                  .size(40.dp)
+                  .clip(CircleShape)
+                  .background(Color(0xFFFEE2E2)),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Warning,
+                  contentDescription = "Warning",
+                  tint = Color(0xFFE11D48),
+                  modifier = Modifier.size(20.dp)
+                )
+              }
+
+              Spacer(modifier = Modifier.width(14.dp))
+
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Food is over by $currency ${formatAmount(NumoFinancialEngine.overspendAmount.toInt())}",
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFFE11D48)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                  text = "Tap to rebalance",
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = Color(0xFFBE123C)
+                )
+              }
+
               Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = "Warning",
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Rebalance",
                 tint = Color(0xFFE11D48),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
               )
             }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Food is over by $currency 1,500",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFE11D48)
-              )
-              Spacer(modifier = Modifier.height(2.dp))
-              Text(
-                text = "Tap to rebalance",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFBE123C)
-              )
-            }
-
-            Icon(
-              imageVector = Icons.Default.ArrowForward,
-              contentDescription = "Rebalance",
-              tint = Color(0xFFE11D48),
-              modifier = Modifier.size(16.dp)
-            )
           }
         }
 
