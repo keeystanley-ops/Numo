@@ -142,79 +142,51 @@ fun AuthScreen(
         }
       }
 
-      // 1. Brand Logo: 3D Plant Leaves (ic_numo_leaf)
+      // Brand Logo & Hero Illustration
       Image(
         painter = painterResource(id = R.drawable.ic_numo_leaf),
         contentDescription = "Numo Brand Logo",
         modifier = Modifier
-          .size(width = 64.dp, height = 54.dp)
+          .size(width = 68.dp, height = 54.dp)
           .testTag("brand_logo"),
         contentScale = ContentScale.Fit
       )
 
-      Spacer(modifier = Modifier.height(6.dp))
-
-      // 2. Brand Name: "Numo"
-      Text(
-        text = "Numo",
-        fontSize = 34.sp,
-        fontWeight = FontWeight.Bold,
-        fontFamily = FontFamily.SansSerif,
-        color = NumoDeepNavy,
-        letterSpacing = (-0.5).sp,
-        modifier = Modifier.testTag("app_title")
-      )
-
-      Spacer(modifier = Modifier.height(4.dp))
-
-      // 3. Tagline: "Smarter Money. \n Brighter Future."
-      Text(
-        text = "Smarter Money.\nBrighter Future.",
-        fontSize = 19.sp,
-        fontWeight = FontWeight.SemiBold,
-        fontFamily = FontFamily.SansSerif,
-        color = NumoTaglineNavy,
-        lineHeight = 25.sp,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.testTag("app_tagline")
-      )
-
       Spacer(modifier = Modifier.height(10.dp))
 
-      // 4. Hero 3D Illustration: Turquoise Wallet with Coins & Plant
       Image(
         painter = painterResource(id = R.drawable.wallet_hero),
         contentDescription = "Wallet and coins illustration",
         modifier = Modifier
           .fillMaxWidth()
-          .height(175.dp)
+          .height(145.dp)
           .padding(horizontal = 8.dp)
           .testTag("wallet_hero_image"),
         contentScale = ContentScale.Fit
       )
 
-      Spacer(modifier = Modifier.height(6.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
-      // 5. Bottom Card ("Welcome Back" Sheet)
+      // Bottom Card ("Welcome Back" Sheet)
       Surface(
         modifier = Modifier
           .fillMaxWidth()
           .shadow(
             elevation = 16.dp,
-            shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             ambientColor = Color(0x1A000000),
             spotColor = Color(0x26000000)
           ),
-        shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         color = NumoWhite
       ) {
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 26.dp, vertical = 26.dp),
+            .padding(horizontal = 24.dp, vertical = 22.dp),
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          // Welcome Back Header
+          // Retain "Welcome Back" and "Sign in to continue your financial journey" alone
           Text(
             text = "Welcome Back",
             fontSize = 26.sp,
@@ -226,7 +198,6 @@ fun AuthScreen(
 
           Spacer(modifier = Modifier.height(6.dp))
 
-          // Subtitle (bolder and higher contrast)
           Text(
             text = "Sign in to continue your\nfinancial journey",
             fontSize = 15.sp,
@@ -237,29 +208,7 @@ fun AuthScreen(
             modifier = Modifier.testTag("welcome_back_subtitle")
           )
 
-          Spacer(modifier = Modifier.height(16.dp))
-
-          // Error Message Alert Box
-          if (displayedError != null) {
-            Box(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFFFEEEE))
-                .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
-                .padding(12.dp)
-            ) {
-              Text(
-                text = displayedError,
-                color = Color(0xFFB91C1C),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-              )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-          }
+          Spacer(modifier = Modifier.height(18.dp))
 
           // Email Input Field (Rounded pill)
           Box(
@@ -398,7 +347,7 @@ fun AuthScreen(
                   colors = listOf(NumoEmeraldStart, NumoEmeraldEnd)
                 )
               )
-              .clickable(enabled = !isLoading && !isOAuthLoading) {
+              .clickable(enabled = !isLoading) {
                 // Strict validation: do not proceed to dashboard if inputs are missing
                 if (email.trim().isEmpty() || password.isEmpty()) {
                   localErrorMessage = "Please enter both your email address and password."
@@ -421,7 +370,7 @@ fun AuthScreen(
               .testTag("sign_in_button"),
             contentAlignment = Alignment.Center
           ) {
-            if (isLoading || isOAuthLoading) {
+            if (isLoading) {
               CircularProgressIndicator(
                 color = Color.White,
                 modifier = Modifier.size(24.dp),
@@ -493,15 +442,23 @@ fun AuthScreen(
                 .clip(RoundedCornerShape(25.dp))
                 .border(1.2.dp, NumoBorder, RoundedCornerShape(25.dp))
                 .background(NumoWhite)
-                .clickable { onGoogleClick() }
+                .clickable(enabled = !isOAuthLoading) { onGoogleClick() }
                 .testTag("google_auth_button"),
               contentAlignment = Alignment.Center
             ) {
-              Image(
-                painter = painterResource(id = R.drawable.ic_google),
-                contentDescription = "Sign in with Google via Clerk",
-                modifier = Modifier.size(22.dp)
-              )
+              if (isOAuthLoading) {
+                CircularProgressIndicator(
+                  color = NumoEmeraldStart,
+                  modifier = Modifier.size(20.dp),
+                  strokeWidth = 2.dp
+                )
+              } else {
+                Image(
+                  painter = painterResource(id = R.drawable.ic_google),
+                  contentDescription = "Sign in with Google via Clerk",
+                  modifier = Modifier.size(22.dp)
+                )
+              }
             }
 
             // Apple Button (Calls Clerk OAuth Apple)
@@ -512,7 +469,7 @@ fun AuthScreen(
                 .clip(RoundedCornerShape(25.dp))
                 .border(1.2.dp, NumoBorder, RoundedCornerShape(25.dp))
                 .background(NumoWhite)
-                .clickable { onAppleClick() }
+                .clickable(enabled = !isOAuthLoading) { onAppleClick() }
                 .testTag("apple_auth_button"),
               contentAlignment = Alignment.Center
             ) {
@@ -550,6 +507,68 @@ fun AuthScreen(
           }
 
           Spacer(modifier = Modifier.height(12.dp))
+        }
+      }
+    }
+
+    // Floating Error Notification (hovers at bottom above controls without pushing content)
+    androidx.compose.animation.AnimatedVisibility(
+      visible = displayedError != null,
+      enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
+      exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut(),
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .navigationBarsPadding()
+        .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x33B91C1C), spotColor = Color(0x4DB91C1C))
+          .clip(RoundedCornerShape(16.dp))
+          .background(Color(0xFFFEF2F2))
+          .border(1.2.dp, Color(0xFFEF4444), RoundedCornerShape(16.dp))
+          .padding(horizontal = 16.dp, vertical = 12.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Box(
+            modifier = Modifier
+              .size(24.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color(0xFFEF4444)),
+            contentAlignment = Alignment.Center
+          ) {
+            Text(
+              text = "!",
+              color = Color.White,
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp
+            )
+          }
+          Spacer(modifier = Modifier.width(12.dp))
+          Text(
+            text = displayedError ?: "",
+            color = Color(0xFF991B1B),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "✕",
+            color = Color(0xFF991B1B),
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier
+              .clickable {
+                localErrorMessage = null
+                onClearExternalError()
+              }
+              .padding(4.dp)
+          )
         }
       }
     }

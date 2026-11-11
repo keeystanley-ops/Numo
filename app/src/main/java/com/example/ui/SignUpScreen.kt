@@ -72,7 +72,7 @@ fun SignUpScreen(
   isOAuthLoading: Boolean = false,
   onClearExternalError: () -> Unit = {},
   onNavigateToSignIn: () -> Unit,
-  onSignUpSuccess: (signUpId: String, email: String) -> Unit,
+  onSignUpSuccess: (signUpId: String, email: String, fullName: String) -> Unit,
   onGoogleSignUp: () -> Unit,
   onAppleSignUp: () -> Unit
 ) {
@@ -170,29 +170,7 @@ fun SignUpScreen(
           textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Error Banner
-        if (displayedError != null) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clip(RoundedCornerShape(14.dp))
-              .background(Color(0xFFFFEEEE))
-              .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(14.dp))
-              .padding(14.dp)
-          ) {
-            Text(
-              text = displayedError,
-              color = Color(0xFFB91C1C),
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Medium,
-              textAlign = TextAlign.Center,
-              modifier = Modifier.fillMaxWidth()
-            )
-          }
-          Spacer(modifier = Modifier.height(14.dp))
-        }
+        Spacer(modifier = Modifier.height(14.dp))
 
         // 5. Input Fields
         // A. Full Name
@@ -309,7 +287,7 @@ fun SignUpScreen(
                 colors = listOf(Color(0xFF029766), Color(0xFF027858))
               )
             )
-            .clickable(enabled = !isLoading && !isOAuthLoading) {
+            .clickable(enabled = !isLoading) {
               // Validations
               when {
                 fullName.trim().isEmpty() -> {
@@ -338,7 +316,7 @@ fun SignUpScreen(
                     val result = ClerkAuthRepository.signUp(email, password, fullName)
                     isLoading = false
                     if (result.success && !result.signUpId.isNullOrEmpty()) {
-                      onSignUpSuccess(result.signUpId, email.trim())
+                      onSignUpSuccess(result.signUpId, email.trim(), fullName.trim())
                     } else {
                       localErrorMessage = result.errorMessage ?: "Failed to create account with Clerk."
                     }
@@ -349,7 +327,7 @@ fun SignUpScreen(
             .testTag("create_account_button"),
           contentAlignment = Alignment.Center
         ) {
-          if (isLoading || isOAuthLoading) {
+          if (isLoading) {
             CircularProgressIndicator(
               color = Color.White,
               modifier = Modifier.size(24.dp),
@@ -519,6 +497,68 @@ fun SignUpScreen(
         }
 
         Spacer(modifier = Modifier.height(28.dp))
+      }
+
+      // Floating Error Notification (hovers at bottom above controls without pushing content)
+      androidx.compose.animation.AnimatedVisibility(
+        visible = displayedError != null,
+        enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut(),
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .navigationBarsPadding()
+          .padding(horizontal = 20.dp, vertical = 16.dp)
+      ) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x33B91C1C), spotColor = Color(0x4DB91C1C))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFEF2F2))
+            .border(1.2.dp, Color(0xFFEF4444), RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFEF4444)),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = "!",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+              )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+              text = displayedError ?: "",
+              color = Color(0xFF991B1B),
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Medium,
+              modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "✕",
+              color = Color(0xFF991B1B),
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp,
+              modifier = Modifier
+                .clickable {
+                  localErrorMessage = null
+                  onClearExternalError()
+                }
+                .padding(4.dp)
+            )
+          }
+        }
       }
     }
   }

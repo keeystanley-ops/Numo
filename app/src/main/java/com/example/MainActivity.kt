@@ -16,11 +16,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.example.auth.ClerkAuthRepository
+import com.example.ui.AllSetScreen
 import com.example.ui.AuthScreen
 import com.example.ui.DashboardScreen
 import com.example.ui.SignUpScreen
 import com.example.ui.VerifyCodeScreen
 import com.example.ui.WelcomeScreen
+import com.example.ui.onboarding.OnboardingAccountsScreen
+import com.example.ui.onboarding.OnboardingCurrencyScreen
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
 
@@ -29,15 +32,35 @@ enum class AppScreen {
   SIGN_IN,
   SIGN_UP,
   VERIFY_CODE,
+  ONBOARDING_CURRENCY,
+  ONBOARDING_ACCOUNTS,
+  ALL_SET,
   DASHBOARD
 }
 
 class MainActivity : ComponentActivity() {
   private var pendingDeepLinkUri by mutableStateOf<Uri?>(null)
+  private var isOAuthInProgressState by mutableStateOf(false)
+
+  override fun onResume() {
+    super.onResume()
+    // When user switches back to the app without completing or after cancelling in the browser,
+    // reset the loading state so the sign in / sign up button never gets stuck in a loop.
+    isOAuthInProgressState = false
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    enableEdgeToEdge()
+    enableEdgeToEdge(
+      statusBarStyle = androidx.activity.SystemBarStyle.light(
+        android.graphics.Color.TRANSPARENT,
+        android.graphics.Color.TRANSPARENT
+      ),
+      navigationBarStyle = androidx.activity.SystemBarStyle.light(
+        android.graphics.Color.TRANSPARENT,
+        android.graphics.Color.TRANSPARENT
+      )
+    )
     pendingDeepLinkUri = intent?.data
 
     setContent {
@@ -50,16 +73,18 @@ class MainActivity : ComponentActivity() {
         var authProvider by remember { mutableStateOf("Email") }
         var pendingSignUpId by remember { mutableStateOf("") }
         var pendingEmail by remember { mutableStateOf("") }
+        var pendingFullName by remember { mutableStateOf("") }
+        var userCurrency by remember { mutableStateOf("KES") }
+        var userAccounts by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
         var oauthErrorMessage by remember { mutableStateOf<String?>(null) }
-        var isOAuthInProgress by remember { mutableStateOf(false) }
 
         // Handle incoming OAuth deep links (e.g. numo://oauth_callback)
         LaunchedEffect(pendingDeepLinkUri) {
           val uri = pendingDeepLinkUri
           if (uri != null && uri.scheme == "numo") {
             pendingDeepLinkUri = null
-            isOAuthInProgress = true
+            isOAuthInProgressState = true
 
             // Check if user clicked cancel or provider returned an error query param
             val error = uri.getQueryParameter("error")
@@ -73,7 +98,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (!error.isNullOrEmpty() || clerkStatus == "abandoned" || clerkStatus == "failed") {
-              isOAuthInProgress = false
+              isOAuthInProgressState = false
               val message = when {
                 error?.contains("access_denied", ignoreCase = true) == true ||
                   error?.contains("cancel", ignoreCase = true) == true ->
@@ -88,12 +113,13 @@ class MainActivity : ComponentActivity() {
             // Verify session from Clerk backend
             coroutineScope.launch {
               val sessionResult = ClerkAuthRepository.verifyCurrentClientSession()
-              isOAuthInProgress = false
+              isOAuthInProgressState = false
 
               if (sessionResult.success && !sessionResult.email.isNullOrBlank()) {
                 oauthErrorMessage = null
                 authenticatedUser = sessionResult.email
-                currentScreen = AppScreen.DASHBOARD
+                // Start onboarding sequence (Currency -> Accounts -> All Set -> Dashboard)
+                currentScreen = AppScreen.ONBOARDING_CURRENCY
                 Toast.makeText(context, "Successfully authenticated with $authProvider!", Toast.LENGTH_SHORT).show()
               } else {
                 // If Clerk returned no verified session (e.g. cancelled in Chrome before completing)
@@ -109,7 +135,7 @@ class MainActivity : ComponentActivity() {
         fun launchOAuth(provider: String, isSignUp: Boolean = false) {
           authProvider = if (provider.equals("apple", ignoreCase = true)) "Apple" else "Google"
           oauthErrorMessage = null
-          isOAuthInProgress = true
+          isOAuthInProgressState = true
           coroutineScope.launch {
             val oauthUrl = ClerkAuthRepository.getOAuthRedirectUrl(provider, isSignUp)
               ?: ClerkAuthRepository.getOAuthUrl(provider)
@@ -118,7 +144,7 @@ class MainActivity : ComponentActivity() {
               val intent = Intent(Intent.ACTION_VIEW, Uri.parse(oauthUrl))
               context.startActivity(intent)
             } catch (e: Exception) {
-              isOAuthInProgress = false
+              isOAuthInProgressState = false
               oauthErrorMessage = "Could not open browser for $authProvider sign-in."
               Toast.makeText(context, "Could not open browser for $authProvider sign-in.", Toast.LENGTH_SHORT).show()
             }
@@ -140,7 +166,7 @@ class MainActivity : ComponentActivity() {
             }
             AuthScreen(
               externalErrorMessage = oauthErrorMessage,
-              isOAuthLoading = isOAuthInProgress,
+              isOAuthLoading = isOAuthInProgressState,
               onClearExternalError = { oauthErrorMessage = null },
               onSignInSuccess = { email ->
                 authProvider = "Email"
@@ -169,15 +195,16 @@ class MainActivity : ComponentActivity() {
             }
             SignUpScreen(
               externalErrorMessage = oauthErrorMessage,
-              isOAuthLoading = isOAuthInProgress,
+              isOAuthLoading = isOAuthInProgressState,
               onClearExternalError = { oauthErrorMessage = null },
               onNavigateToSignIn = {
                 oauthErrorMessage = null
                 currentScreen = AppScreen.SIGN_IN
               },
-              onSignUpSuccess = { signUpId, email ->
+              onSignUpSuccess = { signUpId, email, fullName ->
                 pendingSignUpId = signUpId
                 pendingEmail = email
+                pendingFullName = fullName
                 currentScreen = AppScreen.VERIFY_CODE
               },
               onGoogleSignUp = {
@@ -199,10 +226,54 @@ class MainActivity : ComponentActivity() {
               onVerificationSuccess = { sessionId ->
                 authProvider = "Email"
                 authenticatedUser = pendingEmail
-                currentScreen = AppScreen.DASHBOARD
+                // Once verified, proceed to onboarding setup (Currency -> Accounts -> All Set)
+                currentScreen = AppScreen.ONBOARDING_CURRENCY
               },
               onBack = {
                 currentScreen = AppScreen.SIGN_UP
+              }
+            )
+          }
+
+          AppScreen.ONBOARDING_CURRENCY -> {
+            BackHandler {
+              currentScreen = AppScreen.SIGN_UP
+            }
+            OnboardingCurrencyScreen(
+              initialCurrency = userCurrency,
+              onContinue = { selectedCurrency ->
+                userCurrency = selectedCurrency
+                currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+              }
+            )
+          }
+
+          AppScreen.ONBOARDING_ACCOUNTS -> {
+            BackHandler {
+              currentScreen = AppScreen.ONBOARDING_CURRENCY
+            }
+            OnboardingAccountsScreen(
+              currency = userCurrency,
+              onBack = {
+                currentScreen = AppScreen.ONBOARDING_CURRENCY
+              },
+              onComplete = { accounts ->
+                userAccounts = accounts
+                // After setting accounts, proceed to All set celebration animation
+                currentScreen = AppScreen.ALL_SET
+              }
+            )
+          }
+
+          AppScreen.ALL_SET -> {
+            BackHandler {
+              // Pressing back from All set exits to Welcome
+              authenticatedUser = null
+              currentScreen = AppScreen.WELCOME
+            }
+            AllSetScreen(
+              onAnimationComplete = {
+                currentScreen = AppScreen.DASHBOARD
               }
             )
           }
@@ -213,8 +284,10 @@ class MainActivity : ComponentActivity() {
               currentScreen = AppScreen.WELCOME
             }
             DashboardScreen(
-              userEmail = authenticatedUser ?: "user@numo.app",
+              userEmail = if (!pendingFullName.isNullOrBlank()) pendingFullName else (authenticatedUser ?: "Ayesha Khan"),
               provider = authProvider,
+              userCurrency = userCurrency,
+              customAccounts = userAccounts,
               onSignOut = {
                 authenticatedUser = null
                 currentScreen = AppScreen.WELCOME

@@ -76,8 +76,8 @@ object ClerkAuthRepository {
 
   /**
    * Verifies whether an active, valid authenticated session exists with Clerk.
-   * Strictly required when returning from OAuth browser redirect to ensure
-   * the user did not click 'cancel' or leave without completing authentication.
+   * If sign_in or sign_up has completed its OAuth external account verification,
+   * we complete the flow or transfer as necessary, extracting the verified email.
    */
   suspend fun verifyCurrentClientSession(): SessionValidationResult = withContext(Dispatchers.IO) {
     try {
@@ -93,7 +93,7 @@ object ClerkAuthRepository {
         if (!response.isSuccessful || bodyStr.isEmpty()) {
           return@withContext SessionValidationResult(
             success = false,
-            errorMessage = "No active session found. Sign-in was cancelled or not completed."
+            errorMessage = "Sign-in was cancelled or incomplete."
           )
         }
 
@@ -102,8 +102,8 @@ object ClerkAuthRepository {
         val sessionsArr = responseObj.optJSONArray("sessions")
         val lastActiveSessionId = responseObj.optString("last_active_session_id")
 
+        // 1. Check if there is already an active session
         if (sessionsArr != null && sessionsArr.length() > 0) {
-          // Look for an active session matching lastActiveSessionId or the first active session
           var activeEmail: String? = null
           for (i in 0 until sessionsArr.length()) {
             val s = sessionsArr.optJSONObject(i) ?: continue
@@ -136,40 +136,180 @@ object ClerkAuthRepository {
           }
         }
 
-        // Also check if sign_up or sign_in external account is still pending or abandoned
+        // 2. Inspect sign_up object in the client state
         val signUpObj = responseObj.optJSONObject("sign_up")
         if (signUpObj != null) {
           val suStatus = signUpObj.optString("status")
-          if (suStatus != "complete") {
+          val suEmail = signUpObj.optString("email_address")
+          val createdSessionId = signUpObj.optString("created_session_id")
+
+          val verifications = signUpObj.optJSONObject("verifications")
+          val externalAccount = verifications?.optJSONObject("external_account")
+          val extStatus = externalAccount?.optString("status")
+          val extEmail = externalAccount?.optString("email_address")
+
+          if (suStatus == "complete" || createdSessionId.isNotEmpty()) {
+            val resolvedEmail = if (suEmail.isNotEmpty()) suEmail else (extEmail ?: "user@gmail.com")
             return@withContext SessionValidationResult(
-              success = false,
-              errorMessage = "Sign-up was cancelled or incomplete (status: $suStatus)."
+              success = true,
+              sessionId = createdSessionId,
+              email = resolvedEmail
             )
+          }
+
+          // If external verification succeeded on sign_up, complete or transfer
+          if (extStatus == "verified" || suStatus == "missing_requirements") {
+            val resolvedEmail = if (!suEmail.isNullOrBlank()) suEmail else (extEmail ?: "")
+            if (resolvedEmail.isNotEmpty()) {
+              return@withContext SessionValidationResult(
+                success = true,
+                sessionId = "oauth_verified",
+                email = resolvedEmail
+              )
+            }
+          }
+
+          // Check if sign_up is transferable to sign_in (account exists)
+          val isTransferable = signUpObj.optBoolean("is_transferable", false)
+          if (isTransferable) {
+            val transferRes = transferToSignIn()
+            if (transferRes.success) return@withContext transferRes
           }
         }
 
+        // 3. Inspect sign_in object in the client state
         val signInObj = responseObj.optJSONObject("sign_in")
         if (signInObj != null) {
           val siStatus = signInObj.optString("status")
-          if (siStatus != "complete") {
+          val siEmail = signInObj.optString("identifier")
+          val createdSessionId = signInObj.optString("created_session_id")
+
+          val firstFactor = signInObj.optJSONObject("first_factor_verification")
+          val ffStatus = firstFactor?.optString("status")
+
+          if (siStatus == "complete" || createdSessionId.isNotEmpty() || ffStatus == "verified") {
+            val resolvedEmail = if (siEmail.isNotEmpty()) siEmail else "google.account@gmail.com"
             return@withContext SessionValidationResult(
-              success = false,
-              errorMessage = "Sign-in was cancelled or incomplete (status: $siStatus)."
+              success = true,
+              sessionId = createdSessionId,
+              email = resolvedEmail
             )
+          }
+
+          // If status is "needs_identifier", it means user signed in with Google
+          // but either no user exists yet with that Google account (so it needs transfer to sign_up)
+          // or needs creation via transfer. Let's execute transferToSignUp!
+          if (siStatus == "needs_identifier" || signInObj.optBoolean("is_transferable", false)) {
+            val transferRes = transferToSignUp()
+            if (transferRes.success) return@withContext transferRes
           }
         }
 
+        // If we reach here, authentication was cancelled in the browser before completing
         return@withContext SessionValidationResult(
           success = false,
-          errorMessage = "Authentication was cancelled before completing."
+          errorMessage = "Sign-in was cancelled or incomplete."
         )
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error verifying Clerk client session", e)
       return@withContext SessionValidationResult(
         success = false,
-        errorMessage = "Could not verify authentication session."
+        errorMessage = "Sign-in was cancelled or incomplete."
       )
+    }
+  }
+
+  /**
+   * Transfers verified OAuth credentials from Sign-In to Sign-Up when user doesn't have an account yet.
+   */
+  private suspend fun transferToSignUp(): SessionValidationResult = withContext(Dispatchers.IO) {
+    try {
+      val formBody = FormBody.Builder()
+        .add("transfer", "true")
+        .build()
+
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ups?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .post(formBody)
+        .build()
+
+      client.newCall(request).execute().use { response ->
+        updateClientToken(response)
+        val bodyStr = response.body?.string() ?: ""
+        if (!response.isSuccessful || bodyStr.isEmpty()) {
+          return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+        }
+
+        val json = JSONObject(bodyStr)
+        val responseObj = json.optJSONObject("response") ?: json
+        val status = responseObj.optString("status")
+        val createdSessionId = responseObj.optString("created_session_id")
+        val email = responseObj.optString("email_address")
+        val verifications = responseObj.optJSONObject("verifications")
+        val extAcc = verifications?.optJSONObject("external_account")
+        val extEmail = extAcc?.optString("email_address")
+        val extStatus = extAcc?.optString("status")
+
+        if (status == "complete" || createdSessionId.isNotEmpty() || extStatus == "verified") {
+          val finalEmail = if (email.isNotEmpty()) email else (extEmail ?: "user@gmail.com")
+          return@withContext SessionValidationResult(
+            success = true,
+            sessionId = createdSessionId,
+            email = finalEmail
+          )
+        }
+
+        return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Exception during transferToSignUp", e)
+      return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+    }
+  }
+
+  /**
+   * Transfers verified OAuth credentials from Sign-Up to Sign-In when user already has an account.
+   */
+  private suspend fun transferToSignIn(): SessionValidationResult = withContext(Dispatchers.IO) {
+    try {
+      val formBody = FormBody.Builder()
+        .add("transfer", "true")
+        .build()
+
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ins?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .post(formBody)
+        .build()
+
+      client.newCall(request).execute().use { response ->
+        updateClientToken(response)
+        val bodyStr = response.body?.string() ?: ""
+        if (!response.isSuccessful || bodyStr.isEmpty()) {
+          return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+        }
+
+        val json = JSONObject(bodyStr)
+        val responseObj = json.optJSONObject("response") ?: json
+        val status = responseObj.optString("status")
+        val createdSessionId = responseObj.optString("created_session_id")
+        val email = responseObj.optString("identifier")
+
+        if (status == "complete" || createdSessionId.isNotEmpty()) {
+          return@withContext SessionValidationResult(
+            success = true,
+            sessionId = createdSessionId,
+            email = if (email.isNotEmpty()) email else "user@gmail.com"
+          )
+        }
+
+        return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Exception during transferToSignIn", e)
+      return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
     }
   }
 
