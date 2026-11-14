@@ -16,6 +16,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,8 +31,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.example.auth.ClerkAuthRepository
+import com.example.auth.NumoSessionManager
+import com.example.auth.NumoUserAccountData
+import com.example.auth.StartupAuthState
 import com.example.data.NumoFinancialEngine
 import com.example.ui.AllSetScreen
 import com.example.ui.AuthScreen
@@ -33,6 +48,9 @@ import com.example.ui.ForgotPasswordScreen
 import com.example.ui.SignUpScreen
 import com.example.ui.VerifyCodeScreen
 import com.example.ui.WelcomeScreen
+import com.example.ui.components.Numo3DLogoEmblem
+import com.example.ui.components.NumoDS
+import com.example.ui.components.NumoScreenBackground
 import com.example.ui.onboarding.AccountConnectedScreen
 import com.example.ui.onboarding.OnboardingAccountsScreen
 import com.example.ui.onboarding.OnboardingCurrencyScreen
@@ -40,6 +58,7 @@ import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
 
 enum class AppScreen {
+  STARTUP_LOADING,
   WELCOME,
   SIGN_IN,
   SIGN_UP,
@@ -56,15 +75,13 @@ class MainActivity : ComponentActivity() {
   private var pendingDeepLinkUri by mutableStateOf<Uri?>(null)
   private var isOAuthInProgressState by mutableStateOf(false)
 
-  override fun onResume() {
-    super.onResume()
-    // When user switches back to the app without completing or after cancelling in the browser,
-    // reset the loading state so the sign in / sign up button never gets stuck in a loop.
-    isOAuthInProgressState = false
-  }
-
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    // Initialize persistent Clerk token & per-user session/onboarding storage
+    ClerkAuthRepository.init(applicationContext)
+    NumoSessionManager.init(applicationContext)
+
     enableEdgeToEdge(
       statusBarStyle = androidx.activity.SystemBarStyle.light(
         android.graphics.Color.TRANSPARENT,
@@ -82,8 +99,11 @@ class MainActivity : ComponentActivity() {
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
 
-        var currentScreen by remember { mutableStateOf(AppScreen.WELCOME) }
+        var startupAuthState by remember { mutableStateOf(StartupAuthState.INITIALIZING) }
+        var currentScreen by remember { mutableStateOf(AppScreen.STARTUP_LOADING) }
         var hasCompletedSplashAnimation by rememberSaveable { mutableStateOf(false) }
+
+        var activeUserId by remember { mutableStateOf("") }
         var authenticatedUser by remember { mutableStateOf<String?>(null) }
         var authProvider by remember { mutableStateOf("Email") }
         var pendingSignUpId by remember { mutableStateOf("") }
@@ -95,6 +115,98 @@ class MainActivity : ComponentActivity() {
 
         var oauthErrorMessage by remember { mutableStateOf<String?>(null) }
 
+        fun applyLoadedProfile(profile: NumoUserAccountData) {
+          activeUserId = profile.userId
+          authenticatedUser = profile.email
+          if (profile.fullName.isNotBlank()) {
+            pendingFullName = profile.fullName
+          }
+          authProvider = profile.authProvider.ifBlank { "Email" }
+          userCurrency = profile.currency.ifBlank { "KES" }
+          userAccounts = profile.accounts
+          NumoSessionManager.applyProfileToEngine(profile)
+        }
+
+        fun persistCurrentProfile(onboardingCompleted: Boolean) {
+          val email = authenticatedUser ?: pendingEmail
+          if (email.isBlank()) return
+          val key = NumoSessionManager.resolveUserKey(activeUserId, email)
+          val profile = NumoUserAccountData(
+            userKey = key,
+            userId = activeUserId,
+            email = email,
+            fullName = pendingFullName,
+            authProvider = authProvider,
+            onboardingCompleted = onboardingCompleted,
+            currency = userCurrency,
+            availableCash = NumoFinancialEngine.availableCash,
+            accounts = userAccounts
+          )
+          NumoSessionManager.saveProfile(profile, markAsLastAuthenticated = true)
+        }
+
+        suspend fun routeAuthenticatedUser(
+          email: String,
+          provider: String,
+          fallbackUserId: String? = null,
+          fallbackFullName: String? = null
+        ) {
+          val sessionCheck = ClerkAuthRepository.verifyCurrentClientSession()
+          val resolvedUserId = sessionCheck.userId ?: fallbackUserId
+          val resolvedEmail = sessionCheck.email?.takeIf { it.isNotBlank() } ?: email
+          val resolvedName = sessionCheck.fullName ?: fallbackFullName ?: pendingFullName
+
+          val loaded = NumoSessionManager.loadProfile(
+            userId = resolvedUserId,
+            email = resolvedEmail,
+            fallbackFullName = resolvedName,
+            fallbackProvider = provider
+          ).copy(authProvider = provider)
+
+          applyLoadedProfile(loaded)
+          NumoSessionManager.saveProfile(loaded, markAsLastAuthenticated = true)
+
+          if (loaded.onboardingCompleted) {
+            startupAuthState = StartupAuthState.AUTHENTICATED
+            currentScreen = AppScreen.DASHBOARD
+          } else {
+            startupAuthState = StartupAuthState.ONBOARDING_REQUIRED
+            currentScreen = AppScreen.ONBOARDING_CURRENCY
+          }
+        }
+
+        // Centralized Startup Router: wait for session restoration before routing
+        LaunchedEffect(Unit) {
+          val decision = NumoSessionManager.restoreSessionOnStartup()
+          startupAuthState = decision.authState
+
+          when (decision.authState) {
+            StartupAuthState.AUTHENTICATED -> {
+              hasCompletedSplashAnimation = true
+              decision.userProfile?.let { applyLoadedProfile(it) }
+              currentScreen = AppScreen.DASHBOARD
+            }
+            StartupAuthState.ONBOARDING_REQUIRED -> {
+              hasCompletedSplashAnimation = true
+              decision.userProfile?.let { applyLoadedProfile(it) }
+              currentScreen = AppScreen.ONBOARDING_CURRENCY
+            }
+            StartupAuthState.SESSION_EXPIRED -> {
+              hasCompletedSplashAnimation = true
+              oauthErrorMessage = "Your session expired. Please sign in again."
+              currentScreen = AppScreen.SIGN_IN
+            }
+            StartupAuthState.UNAUTHENTICATED, StartupAuthState.INITIALIZING, StartupAuthState.ONBOARDING_COMPLETED -> {
+              if (decision.isFirstTimeUser) {
+                currentScreen = AppScreen.WELCOME
+              } else {
+                hasCompletedSplashAnimation = true
+                currentScreen = AppScreen.SIGN_IN
+              }
+            }
+          }
+        }
+
         // Handle incoming OAuth deep links (e.g. numo://oauth_callback)
         LaunchedEffect(pendingDeepLinkUri) {
           val uri = pendingDeepLinkUri
@@ -102,7 +214,6 @@ class MainActivity : ComponentActivity() {
             pendingDeepLinkUri = null
             isOAuthInProgressState = true
 
-            // Check if user clicked cancel or provider returned an error query param
             val error = uri.getQueryParameter("error")
               ?: uri.getQueryParameter("error_description")
             val clerkStatus = uri.getQueryParameter("status")
@@ -126,19 +237,21 @@ class MainActivity : ComponentActivity() {
               return@LaunchedEffect
             }
 
-            // Verify session from Clerk backend
             coroutineScope.launch {
               val sessionResult = ClerkAuthRepository.verifyCurrentClientSession()
               isOAuthInProgressState = false
 
               if (sessionResult.success && !sessionResult.email.isNullOrBlank()) {
                 oauthErrorMessage = null
-                authenticatedUser = sessionResult.email
-                // Start onboarding sequence (Currency -> Accounts -> All Set -> Dashboard)
-                currentScreen = AppScreen.ONBOARDING_CURRENCY
+                hasCompletedSplashAnimation = true
+                routeAuthenticatedUser(
+                  email = sessionResult.email,
+                  provider = authProvider,
+                  fallbackUserId = sessionResult.userId,
+                  fallbackFullName = sessionResult.fullName
+                )
                 Toast.makeText(context, "Successfully authenticated with $authProvider!", Toast.LENGTH_SHORT).show()
               } else {
-                // If Clerk returned no verified session (e.g. cancelled in Chrome before completing)
                 val failMsg = sessionResult.errorMessage
                   ?: "$authProvider sign-in was not completed or was cancelled."
                 oauthErrorMessage = failMsg
@@ -181,206 +294,235 @@ class MainActivity : ComponentActivity() {
                 (slideOutHorizontally(tween(380, easing = FastOutSlowInEasing)) { it } +
                   fadeOut(tween(280)))
             } else {
-              fadeIn(animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing)) togetherWith
-                fadeOut(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing))
+              fadeIn(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) togetherWith
+                fadeOut(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing))
             }
           },
           label = "AppScreenTransition"
         ) { screen ->
           when (screen) {
-          AppScreen.WELCOME -> {
-            WelcomeScreen(
-              skipAnimation = hasCompletedSplashAnimation,
-              onSplashAnimationFinished = {
-                hasCompletedSplashAnimation = true
-              },
-              onGetStarted = {
-                hasCompletedSplashAnimation = true
-                currentScreen = AppScreen.SIGN_IN
-              }
-            )
-          }
-
-          AppScreen.SIGN_IN -> {
-            BackHandler {
-              currentScreen = AppScreen.WELCOME
+            AppScreen.STARTUP_LOADING -> {
+              StartupLoadingScreen()
             }
-            AuthScreen(
-              externalErrorMessage = oauthErrorMessage,
-              isOAuthLoading = isOAuthInProgressState,
-              onClearExternalError = { oauthErrorMessage = null },
-              onSignInSuccess = { email ->
-                authProvider = "Email"
-                authenticatedUser = email
-                currentScreen = AppScreen.DASHBOARD
-              },
-              onSignUpClick = {
-                oauthErrorMessage = null
-                currentScreen = AppScreen.SIGN_UP
-              },
-              onGoogleClick = {
-                launchOAuth("google", isSignUp = false)
-              },
-              onAppleClick = {
-                launchOAuth("apple", isSignUp = false)
-              },
-              onForgotPasswordClick = { typedEmail ->
-                resetEmailPreload = typedEmail
-                currentScreen = AppScreen.FORGOT_PASSWORD
-              },
-              onBack = {
+
+            AppScreen.WELCOME -> {
+              WelcomeScreen(
+                skipAnimation = hasCompletedSplashAnimation,
+                onSplashAnimationFinished = {
+                  hasCompletedSplashAnimation = true
+                },
+                onGetStarted = {
+                  hasCompletedSplashAnimation = true
+                  currentScreen = AppScreen.SIGN_IN
+                }
+              )
+            }
+
+            AppScreen.SIGN_IN -> {
+              BackHandler {
                 currentScreen = AppScreen.WELCOME
               }
-            )
-          }
-
-          AppScreen.FORGOT_PASSWORD -> {
-            BackHandler {
-              currentScreen = AppScreen.SIGN_IN
+              AuthScreen(
+                externalErrorMessage = oauthErrorMessage,
+                isOAuthLoading = isOAuthInProgressState,
+                onClearExternalError = { oauthErrorMessage = null },
+                onSignInSuccess = { email ->
+                  coroutineScope.launch {
+                    routeAuthenticatedUser(
+                      email = email,
+                      provider = "Email"
+                    )
+                  }
+                },
+                onSignUpClick = {
+                  oauthErrorMessage = null
+                  currentScreen = AppScreen.SIGN_UP
+                },
+                onGoogleClick = {
+                  launchOAuth("google", isSignUp = false)
+                },
+                onAppleClick = {
+                  launchOAuth("apple", isSignUp = false)
+                },
+                onForgotPasswordClick = { typedEmail ->
+                  resetEmailPreload = typedEmail
+                  currentScreen = AppScreen.FORGOT_PASSWORD
+                },
+                onBack = {
+                  currentScreen = AppScreen.WELCOME
+                }
+              )
             }
-            ForgotPasswordScreen(
-              initialEmail = resetEmailPreload,
-              onBack = {
+
+            AppScreen.FORGOT_PASSWORD -> {
+              BackHandler {
                 currentScreen = AppScreen.SIGN_IN
-              },
-              onNavigateToSignUp = {
+              }
+              ForgotPasswordScreen(
+                initialEmail = resetEmailPreload,
+                onBack = {
+                  currentScreen = AppScreen.SIGN_IN
+                },
+                onNavigateToSignUp = {
+                  currentScreen = AppScreen.SIGN_UP
+                },
+                onResetSuccess = { email ->
+                  Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
+                  coroutineScope.launch {
+                    routeAuthenticatedUser(
+                      email = email,
+                      provider = "Email"
+                    )
+                  }
+                }
+              )
+            }
+
+            AppScreen.SIGN_UP -> {
+              BackHandler {
+                currentScreen = AppScreen.SIGN_IN
+              }
+              SignUpScreen(
+                externalErrorMessage = oauthErrorMessage,
+                isOAuthLoading = isOAuthInProgressState,
+                onClearExternalError = { oauthErrorMessage = null },
+                onNavigateToSignIn = {
+                  oauthErrorMessage = null
+                  currentScreen = AppScreen.SIGN_IN
+                },
+                onSignUpSuccess = { signUpId, email, fullName ->
+                  pendingSignUpId = signUpId
+                  pendingEmail = email
+                  pendingFullName = fullName
+                  currentScreen = AppScreen.VERIFY_CODE
+                },
+                onGoogleSignUp = {
+                  launchOAuth("google", isSignUp = true)
+                },
+                onAppleSignUp = {
+                  launchOAuth("apple", isSignUp = true)
+                }
+              )
+            }
+
+            AppScreen.VERIFY_CODE -> {
+              BackHandler {
                 currentScreen = AppScreen.SIGN_UP
-              },
-              onResetSuccess = { email ->
-                authProvider = "Email"
-                authenticatedUser = email
-                Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
-                currentScreen = AppScreen.DASHBOARD
               }
-            )
-          }
-
-          AppScreen.SIGN_UP -> {
-            BackHandler {
-              currentScreen = AppScreen.SIGN_IN
+              VerifyCodeScreen(
+                signUpId = pendingSignUpId,
+                userEmail = pendingEmail,
+                onVerificationSuccess = { _ ->
+                  authProvider = "Email"
+                  authenticatedUser = pendingEmail
+                  coroutineScope.launch {
+                    routeAuthenticatedUser(
+                      email = pendingEmail,
+                      provider = "Email",
+                      fallbackFullName = pendingFullName
+                    )
+                  }
+                },
+                onBack = {
+                  currentScreen = AppScreen.SIGN_UP
+                }
+              )
             }
-            SignUpScreen(
-              externalErrorMessage = oauthErrorMessage,
-              isOAuthLoading = isOAuthInProgressState,
-              onClearExternalError = { oauthErrorMessage = null },
-              onNavigateToSignIn = {
-                oauthErrorMessage = null
+
+            AppScreen.ONBOARDING_CURRENCY -> {
+              BackHandler {
                 currentScreen = AppScreen.SIGN_IN
-              },
-              onSignUpSuccess = { signUpId, email, fullName ->
-                pendingSignUpId = signUpId
-                pendingEmail = email
-                pendingFullName = fullName
-                currentScreen = AppScreen.VERIFY_CODE
-              },
-              onGoogleSignUp = {
-                launchOAuth("google", isSignUp = true)
-              },
-              onAppleSignUp = {
-                launchOAuth("apple", isSignUp = true)
               }
-            )
-          }
-
-          AppScreen.VERIFY_CODE -> {
-            BackHandler {
-              currentScreen = AppScreen.SIGN_UP
+              OnboardingCurrencyScreen(
+                initialCurrency = userCurrency,
+                onBack = {
+                  currentScreen = AppScreen.SIGN_IN
+                },
+                onContinue = { selectedCurrency ->
+                  userCurrency = selectedCurrency
+                  NumoFinancialEngine.currency = selectedCurrency
+                  persistCurrentProfile(onboardingCompleted = false)
+                  currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+                }
+              )
             }
-            VerifyCodeScreen(
-              signUpId = pendingSignUpId,
-              userEmail = pendingEmail,
-              onVerificationSuccess = { sessionId ->
-                authProvider = "Email"
-                authenticatedUser = pendingEmail
-                // Once verified, proceed to onboarding setup (Currency -> Accounts -> All Set)
+
+            AppScreen.ONBOARDING_ACCOUNTS -> {
+              BackHandler {
                 currentScreen = AppScreen.ONBOARDING_CURRENCY
-              },
-              onBack = {
-                currentScreen = AppScreen.SIGN_UP
               }
-            )
-          }
-
-          AppScreen.ONBOARDING_CURRENCY -> {
-            BackHandler {
-              currentScreen = AppScreen.SIGN_IN
+              OnboardingAccountsScreen(
+                currency = userCurrency,
+                onBack = {
+                  currentScreen = AppScreen.ONBOARDING_CURRENCY
+                },
+                onComplete = { accounts ->
+                  userAccounts = accounts
+                  persistCurrentProfile(onboardingCompleted = false)
+                  currentScreen = AppScreen.ACCOUNT_CONNECTED
+                }
+              )
             }
-            OnboardingCurrencyScreen(
-              initialCurrency = userCurrency,
-              onBack = {
-                currentScreen = AppScreen.SIGN_IN
-              },
-              onContinue = { selectedCurrency ->
-                userCurrency = selectedCurrency
-                NumoFinancialEngine.currency = selectedCurrency
+
+            AppScreen.ACCOUNT_CONNECTED -> {
+              BackHandler {
                 currentScreen = AppScreen.ONBOARDING_ACCOUNTS
               }
-            )
-          }
-
-          AppScreen.ONBOARDING_ACCOUNTS -> {
-            BackHandler {
-              currentScreen = AppScreen.ONBOARDING_CURRENCY
+              AccountConnectedScreen(
+                connectedAccounts = userAccounts,
+                currency = userCurrency,
+                onBack = {
+                  currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+                },
+                onContinue = {
+                  persistCurrentProfile(onboardingCompleted = true)
+                  currentScreen = AppScreen.ALL_SET
+                }
+              )
             }
-            OnboardingAccountsScreen(
-              currency = userCurrency,
-              onBack = {
-                currentScreen = AppScreen.ONBOARDING_CURRENCY
-              },
-              onComplete = { accounts ->
-                userAccounts = accounts
-                // Only show Screen 6 (Account Connected) after account connection succeeds
+
+            AppScreen.ALL_SET -> {
+              BackHandler {
                 currentScreen = AppScreen.ACCOUNT_CONNECTED
               }
-            )
-          }
-
-          AppScreen.ACCOUNT_CONNECTED -> {
-            BackHandler {
-              currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+              AllSetScreen(
+                onGoToHome = {
+                  persistCurrentProfile(onboardingCompleted = true)
+                  startupAuthState = StartupAuthState.AUTHENTICATED
+                  currentScreen = AppScreen.DASHBOARD
+                },
+                onAddMoreAccounts = {
+                  currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+                }
+              )
             }
-            AccountConnectedScreen(
-              connectedAccounts = userAccounts,
-              currency = userCurrency,
-              onBack = {
-                currentScreen = AppScreen.ONBOARDING_ACCOUNTS
-              },
-              onContinue = {
-                currentScreen = AppScreen.ALL_SET
-              }
-            )
-          }
 
-          AppScreen.ALL_SET -> {
-            BackHandler {
-              currentScreen = AppScreen.ACCOUNT_CONNECTED
-            }
-            AllSetScreen(
-              onGoToHome = {
-                currentScreen = AppScreen.DASHBOARD
-              },
-              onAddMoreAccounts = {
-                currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+            AppScreen.DASHBOARD -> {
+              BackHandler {
+                // Keep authenticated session intact when pressing Back on Dashboard
+                moveTaskToBack(true)
               }
-            )
-          }
-
-          AppScreen.DASHBOARD -> {
-            BackHandler {
-              authenticatedUser = null
-              currentScreen = AppScreen.WELCOME
+              DashboardScreen(
+                userEmail = if (pendingFullName.isNotBlank()) pendingFullName else (authenticatedUser ?: "Ayesha Khan"),
+                provider = authProvider,
+                userCurrency = userCurrency,
+                customAccounts = userAccounts,
+                onSignOut = {
+                  coroutineScope.launch {
+                    NumoSessionManager.logout()
+                    startupAuthState = StartupAuthState.UNAUTHENTICATED
+                    activeUserId = ""
+                    authenticatedUser = null
+                    pendingFullName = ""
+                    userAccounts = emptyList()
+                    userCurrency = "KES"
+                    oauthErrorMessage = null
+                    hasCompletedSplashAnimation = true
+                    currentScreen = AppScreen.SIGN_IN
+                  }
+                }
+              )
             }
-            DashboardScreen(
-              userEmail = if (!pendingFullName.isNullOrBlank()) pendingFullName else (authenticatedUser ?: "Ayesha Khan"),
-              provider = authProvider,
-              userCurrency = userCurrency,
-              customAccounts = userAccounts,
-              onSignOut = {
-                authenticatedUser = null
-                currentScreen = AppScreen.WELCOME
-              }
-            )
-          }
           }
         }
       }
@@ -391,5 +533,28 @@ class MainActivity : ComponentActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
     pendingDeepLinkUri = intent.data
+  }
+}
+
+/**
+ * Subtle Numo-branded loading state shown while checking persisted Clerk session
+ * on startup so authenticated users never see a flash of onboarding screens.
+ */
+@Composable
+private fun StartupLoadingScreen() {
+  NumoScreenBackground(modifier = Modifier.testTag("startup_loading_screen")) {
+    Column(
+      modifier = Modifier.fillMaxSize(),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.Center
+    ) {
+      Numo3DLogoEmblem(size = 84.dp)
+      Spacer(modifier = Modifier.height(22.dp))
+      CircularProgressIndicator(
+        color = NumoDS.Turquoise,
+        modifier = Modifier.size(26.dp),
+        strokeWidth = 2.5.dp
+      )
+    }
   }
 }

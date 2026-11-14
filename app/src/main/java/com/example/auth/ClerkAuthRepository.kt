@@ -1,5 +1,7 @@
 package com.example.auth
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,7 +36,10 @@ data class SignInResult(
 data class SessionValidationResult(
   val success: Boolean,
   val sessionId: String? = null,
+  val userId: String? = null,
   val email: String? = null,
+  val fullName: String? = null,
+  val isNetworkError: Boolean = false,
   val errorMessage: String? = null
 )
 
@@ -55,10 +60,29 @@ object ClerkAuthRepository {
   private const val TAG = "ClerkAuth"
   private const val PUBLISHABLE_KEY = "pk_test_a25vd2luZy1zbmlwZS03MzY0LmNsZXJrLmFjY291bnRzLmRldiQ"
   private const val FAPI_BASE = "https://knowing-snipe-7364.clerk.accounts.dev/v1/client"
+  private const val PREFS_NAME = "numo_auth_prefs"
+  private const val KEY_CLIENT_TOKEN = "clerk_client_token"
+
+  @Volatile
+  private var prefs: SharedPreferences? = null
 
   // Rotating client session token returned by Clerk in response headers
   @Volatile
   private var clientToken: String? = null
+
+  fun init(context: Context) {
+    if (prefs == null) {
+      val appPrefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      prefs = appPrefs
+      val saved = appPrefs.getString(KEY_CLIENT_TOKEN, null)
+      if (!saved.isNullOrBlank()) {
+        clientToken = saved
+        Log.d(TAG, "Restored persisted Clerk client session token")
+      }
+    }
+  }
+
+  fun hasStoredClientToken(): Boolean = !clientToken.isNullOrBlank()
 
   private val client = OkHttpClient.Builder()
     .connectTimeout(15, TimeUnit.SECONDS)
@@ -79,12 +103,40 @@ object ClerkAuthRepository {
   }
 
   fun setClientToken(token: String) {
-    clientToken = token.removePrefix("Bearer ").trim()
-    Log.d(TAG, "Explicitly set Clerk client session token")
+    val clean = token.removePrefix("Bearer ").trim()
+    clientToken = clean
+    prefs?.edit()?.putString(KEY_CLIENT_TOKEN, clean)?.apply()
+    Log.d(TAG, "Explicitly set and persisted Clerk client session token")
   }
 
   fun clearClientToken() {
     clientToken = null
+    prefs?.edit()?.remove(KEY_CLIENT_TOKEN)?.apply()
+  }
+
+  /**
+   * Explicitly signs out the current Clerk session on the server and clears
+   * the persisted client token without deleting any local user financial records.
+   */
+  suspend fun signOut(): Boolean = withContext(Dispatchers.IO) {
+    val token = clientToken
+    if (token.isNullOrBlank()) {
+      clearClientToken()
+      return@withContext true
+    }
+    try {
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sessions?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .delete()
+        .build()
+      client.newCall(request).execute().use { /* best-effort remote revocation */ }
+    } catch (e: Exception) {
+      Log.w(TAG, "Remote Clerk sign-out failed; clearing local token", e)
+    } finally {
+      clearClientToken()
+    }
+    true
   }
 
   /**
@@ -118,12 +170,20 @@ object ClerkAuthRepository {
         // 1. Check if there is already an active session
         if (sessionsArr != null && sessionsArr.length() > 0) {
           var activeEmail: String? = null
+          var activeUserId: String? = null
+          var activeFullName: String? = null
+          var activeSessionId: String? = null
           for (i in 0 until sessionsArr.length()) {
             val s = sessionsArr.optJSONObject(i) ?: continue
             val status = s.optString("status")
             val id = s.optString("id")
             if (status == "active" || id == lastActiveSessionId) {
+              activeSessionId = id.ifBlank { lastActiveSessionId }
               val user = s.optJSONObject("user")
+              activeUserId = user?.optString("id")?.takeIf { it.isNotBlank() }
+              val fName = user?.optString("first_name")?.trim().orEmpty()
+              val lName = user?.optString("last_name")?.trim().orEmpty()
+              activeFullName = listOf(fName, lName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
               val primaryEmailId = user?.optString("primary_email_address_id")
               val emailsArr = user?.optJSONArray("email_addresses")
               if (emailsArr != null && emailsArr.length() > 0) {
@@ -143,8 +203,10 @@ object ClerkAuthRepository {
           if (activeEmail != null) {
             return@withContext SessionValidationResult(
               success = true,
-              sessionId = lastActiveSessionId,
-              email = activeEmail
+              sessionId = activeSessionId ?: lastActiveSessionId,
+              userId = activeUserId,
+              email = activeEmail,
+              fullName = activeFullName
             )
           }
         }
@@ -228,7 +290,8 @@ object ClerkAuthRepository {
       Log.e(TAG, "Error verifying Clerk client session", e)
       return@withContext SessionValidationResult(
         success = false,
-        errorMessage = "Sign-in was cancelled or incomplete."
+        isNetworkError = true,
+        errorMessage = e.message ?: "Unable to reach authentication server."
       )
     }
   }
@@ -337,8 +400,10 @@ object ClerkAuthRepository {
       ?: response.header("clerk-db-jwt")
 
     if (!auth.isNullOrBlank()) {
-      clientToken = auth.removePrefix("Bearer ").trim()
-      Log.d(TAG, "Updated Clerk client session token")
+      val clean = auth.removePrefix("Bearer ").trim()
+      clientToken = clean
+      prefs?.edit()?.putString(KEY_CLIENT_TOKEN, clean)?.apply()
+      Log.d(TAG, "Updated and persisted Clerk client session token")
     }
   }
 
