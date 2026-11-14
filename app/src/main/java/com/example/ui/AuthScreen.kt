@@ -18,19 +18,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -54,27 +52,38 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.auth.ClerkAuthRepository
+import com.example.ui.animation.bouncyClickable
+import com.example.ui.theme.NumoActionButtonBg
+import com.example.ui.theme.NumoActionButtonBorder
+import com.example.ui.theme.NumoDarkForestGreen
+import com.example.ui.theme.NumoElementsCorners
+import com.example.ui.theme.NumoGlassCardBg
+import com.example.ui.theme.NumoGlassCardBorder
+import com.example.ui.theme.NumoInputBg
+import com.example.ui.theme.NumoInputPlaceholder
+import com.example.ui.theme.NumoMintBackground
+import com.example.ui.theme.NumoSlateGreen
 import kotlinx.coroutines.launch
 
-// Colors sampled precisely from auth.png
-val NumoMintTop = Color(0xFFD4FAEF)
-val NumoMintMid = Color(0xFFE6FAF3)
-val NumoMintLight = Color(0xFFF3FCF8)
-val NumoWhite = Color(0xFFFFFFFF)
-val NumoDeepNavy = Color(0xFF001A49)
-val NumoTaglineNavy = Color(0xFF0F2F4A)
-val NumoSubText = Color(0xFF627D98)
-val NumoBorder = Color(0xFFE2E8F0)
-val NumoPlaceholder = Color(0xFF94A3B8)
-val NumoEmeraldStart = Color(0xFF029766)
-val NumoEmeraldEnd = Color(0xFF027858)
-
+/**
+ * Screen 1: "Welcome Back to Numo" (Sign In)
+ * Features:
+ * - Top Navigation Bar: Back button to return to Splash, and "Sign Up >" button to go to registration
+ * - Header: "Welcome Back to \n Numo" in Dark Forest Green (#1E5631), Numo leaf icon
+ * - Frosted glass card with 26dp rounded corners:
+ *   - "Sign in with Google" button
+ *   - "Sign in with Apple" button
+ *   - "Use Email" divider
+ *   - "Email Address" field with active forest green outline & placeholder
+ *   - "Password" field
+ *   - "Forgot Password?" link
+ *   - "Sign In" button
+ *   - "Don't have an account? Sign Up >" direct button
+ */
 @Composable
 fun AuthScreen(
   externalErrorMessage: String? = null,
@@ -84,492 +93,482 @@ fun AuthScreen(
   onSignUpClick: () -> Unit = {},
   onGoogleClick: () -> Unit = {},
   onAppleClick: () -> Unit = {},
+  onForgotPasswordClick: (currentEmail: String) -> Unit = {},
   onBack: () -> Unit = {},
 ) {
   val coroutineScope = rememberCoroutineScope()
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
-  var passwordVisible by remember { mutableStateOf(false) }
 
   var isLoading by remember { mutableStateOf(false) }
   var localErrorMessage by remember { mutableStateOf<String?>(null) }
   val displayedError = externalErrorMessage ?: localErrorMessage
 
-  Box(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(
-        brush = Brush.verticalGradient(
-          colors = listOf(
-            NumoMintTop,
-            NumoMintMid,
-            NumoMintLight,
-            NumoWhite
-          )
-        )
-      )
+  Surface(
+    modifier = Modifier.fillMaxSize(),
+    color = NumoMintBackground
   ) {
-    Column(
+    Box(
       modifier = Modifier
         .fillMaxSize()
-        .verticalScroll(rememberScrollState())
+        .background(NumoMintBackground)
         .statusBarsPadding()
-        .navigationBarsPadding(),
-      horizontalAlignment = Alignment.CenterHorizontally
+        .navigationBarsPadding()
     ) {
-      // Top row with optional back to Welcome button
-      Row(
+      Column(
         modifier = Modifier
-          .fillMaxWidth()
-          .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+          .fillMaxSize()
+          .verticalScroll(rememberScrollState())
+          .padding(horizontal = 18.dp)
       ) {
-        Box(
-          modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.8f))
-            .border(1.dp, NumoBorder, RoundedCornerShape(12.dp))
-            .clickable { onBack() },
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back to Welcome",
-            tint = NumoDeepNavy,
-            modifier = Modifier.size(18.dp)
-          )
-        }
-      }
+        Spacer(modifier = Modifier.height(10.dp))
 
-      // Brand Logo & Hero Illustration
-      Image(
-        painter = painterResource(id = R.drawable.ic_numo_leaf),
-        contentDescription = "Numo Brand Logo",
-        modifier = Modifier
-          .size(width = 68.dp, height = 54.dp)
-          .testTag("brand_logo"),
-        contentScale = ContentScale.Fit
-      )
-
-      Spacer(modifier = Modifier.height(10.dp))
-
-      Image(
-        painter = painterResource(id = R.drawable.wallet_hero),
-        contentDescription = "Wallet and coins illustration",
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(145.dp)
-          .padding(horizontal = 8.dp)
-          .testTag("wallet_hero_image"),
-        contentScale = ContentScale.Fit
-      )
-
-      Spacer(modifier = Modifier.height(12.dp))
-
-      // Bottom Card ("Welcome Back" Sheet)
-      Surface(
-        modifier = Modifier
-          .fillMaxWidth()
-          .shadow(
-            elevation = 16.dp,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            ambientColor = Color(0x1A000000),
-            spotColor = Color(0x26000000)
-          ),
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        color = NumoWhite
-      ) {
-        Column(
+        // 1. Top Navigation Bar: Back to Splash on Left
+        Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 22.dp),
-          horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 2.dp),
+          horizontalArrangement = Arrangement.Start,
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          // Retain "Welcome Back" and "Sign in to continue your financial journey" alone
-          Text(
-            text = "Welcome Back",
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold,
-            color = NumoDeepNavy,
-            letterSpacing = (-0.3).sp,
-            modifier = Modifier.testTag("welcome_back_title")
-          )
-
-          Spacer(modifier = Modifier.height(6.dp))
-
-          Text(
-            text = "Sign in to continue your\nfinancial journey",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF334E68),
-            lineHeight = 22.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("welcome_back_subtitle")
-          )
-
-          Spacer(modifier = Modifier.height(18.dp))
-
-          // Email Input Field (Rounded pill)
-          Box(
+          // Back Button to Splash
+          IconButton(
+            onClick = { onBack() },
             modifier = Modifier
-              .fillMaxWidth()
-              .height(54.dp)
-              .clip(RoundedCornerShape(27.dp))
-              .border(1.2.dp, NumoBorder, RoundedCornerShape(27.dp))
-              .background(NumoWhite)
-              .padding(horizontal = 18.dp),
-            contentAlignment = Alignment.CenterStart
+              .size(40.dp)
+              .clip(CircleShape)
+              .background(Color.White.copy(alpha = 0.85f))
+              .border(1.dp, NumoElementsCorners, CircleShape)
+              .testTag("btn_back_to_splash")
           ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Icon(
-                imageVector = Icons.Outlined.Email,
-                contentDescription = "Email icon",
-                tint = NumoPlaceholder,
-                modifier = Modifier.size(20.dp)
-              )
-              Spacer(modifier = Modifier.width(12.dp))
-              Box(modifier = Modifier.weight(1f)) {
-                if (email.isEmpty()) {
-                  Text(
-                    text = "Email address",
-                    color = NumoPlaceholder,
-                    fontSize = 15.sp
-                  )
-                }
-                BasicTextField(
-                  value = email,
-                  onValueChange = {
-                    email = it
-                    localErrorMessage = null
-                    onClearExternalError()
-                  },
-                  singleLine = true,
-                  textStyle = TextStyle(
-                    color = NumoDeepNavy,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                  ),
-                  cursorBrush = SolidColor(NumoEmeraldStart),
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("email_input")
-                )
-              }
-            }
+            Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+              contentDescription = "Back to Splash",
+              tint = NumoDarkForestGreen,
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 2. Title Row: "Welcome Back to \n Numo" on Left, Leaf on Right
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.Top
+        ) {
+          Column(
+            modifier = Modifier.testTag("signin_header_title")
+          ) {
+            Text(
+              text = "Welcome Back to",
+              fontSize = 24.sp,
+              lineHeight = 28.sp,
+              fontWeight = FontWeight.Bold,
+              fontFamily = FontFamily.SansSerif,
+              color = NumoDarkForestGreen
+            )
+            Text(
+              text = "Numo",
+              fontSize = 24.sp,
+              lineHeight = 28.sp,
+              fontWeight = FontWeight.Bold,
+              fontFamily = FontFamily.SansSerif,
+              color = NumoDarkForestGreen
+            )
           }
 
-          Spacer(modifier = Modifier.height(14.dp))
+          Image(
+            painter = painterResource(id = R.drawable.ic_numo_leaf_transparent),
+            contentDescription = "Numo Brand Leaf",
+            modifier = Modifier
+              .size(36.dp)
+              .testTag("signin_top_leaf"),
+            contentScale = ContentScale.Fit
+          )
+        }
 
-          // Password Input Field (Rounded pill)
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Optional Error Banner
+        if (!displayedError.isNullOrBlank()) {
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .height(54.dp)
-              .clip(RoundedCornerShape(27.dp))
-              .border(1.2.dp, NumoBorder, RoundedCornerShape(27.dp))
-              .background(NumoWhite)
-              .padding(horizontal = 18.dp),
-            contentAlignment = Alignment.CenterStart
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color(0xFFFFECEC))
+              .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+              .padding(horizontal = 12.dp, vertical = 8.dp)
           ) {
             Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier.fillMaxWidth()
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
             ) {
-              Icon(
-                imageVector = Icons.Outlined.Lock,
-                contentDescription = "Password icon",
-                tint = NumoPlaceholder,
-                modifier = Modifier.size(20.dp)
+              Text(
+                text = displayedError,
+                fontSize = 12.sp,
+                color = Color(0xFFB91C1C),
+                modifier = Modifier.weight(1f)
               )
-              Spacer(modifier = Modifier.width(12.dp))
-              Box(modifier = Modifier.weight(1f)) {
-                if (password.isEmpty()) {
-                  Text(
-                    text = "Password",
-                    color = NumoPlaceholder,
-                    fontSize = 15.sp
-                  )
-                }
-                BasicTextField(
-                  value = password,
-                  onValueChange = {
-                    password = it
-                    localErrorMessage = null
-                    onClearExternalError()
-                  },
-                  singleLine = true,
-                  visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                  textStyle = TextStyle(
-                    color = NumoDeepNavy,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                  ),
-                  cursorBrush = SolidColor(NumoEmeraldStart),
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("password_input")
-                )
-              }
-              Icon(
-                imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                contentDescription = "Toggle password visibility",
-                tint = NumoPlaceholder,
+              Text(
+                text = "✕",
+                fontSize = 13.sp,
+                color = Color(0xFFB91C1C),
                 modifier = Modifier
-                  .size(20.dp)
-                  .clickable { passwordVisible = !passwordVisible }
-                  .testTag("toggle_password_visibility")
+                  .clickable {
+                    localErrorMessage = null
+                    onClearExternalError()
+                  }
+                  .padding(start = 8.dp)
               )
             }
           }
+          Spacer(modifier = Modifier.height(10.dp))
+        }
 
-          Spacer(modifier = Modifier.height(18.dp))
-
-          // Primary "Sign In →" Button with rich back shadow for clear visibility
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(56.dp)
-              .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(28.dp),
-                ambientColor = Color(0x55027858),
-                spotColor = Color(0x80029766)
-              )
-              .clip(RoundedCornerShape(28.dp))
-              .background(
-                brush = Brush.verticalGradient(
-                  colors = listOf(NumoEmeraldStart, NumoEmeraldEnd)
-                )
-              )
-              .clickable(enabled = !isLoading) {
-                // Strict validation: do not proceed to dashboard if inputs are missing
-                if (email.trim().isEmpty() || password.isEmpty()) {
-                  localErrorMessage = "Please enter both your email address and password."
-                  return@clickable
+        // 3. MINT GLASSMORPHISM CARD
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+              elevation = 6.dp,
+              shape = RoundedCornerShape(26.dp),
+              spotColor = NumoDarkForestGreen.copy(alpha = 0.08f),
+              ambientColor = NumoDarkForestGreen.copy(alpha = 0.03f)
+            )
+            .clip(RoundedCornerShape(26.dp))
+            .background(NumoGlassCardBg)
+            .border(1.5.dp, NumoGlassCardBorder, RoundedCornerShape(26.dp))
+            .padding(18.dp)
+        ) {
+          Column(modifier = Modifier.fillMaxWidth()) {
+            // "Sign in with Google" Button
+            Surface(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, NumoElementsCorners, RoundedCornerShape(14.dp))
+                .bouncyClickable(enabled = !isLoading && !isOAuthLoading) {
+                  onGoogleClick()
                 }
-
-                isLoading = true
-                localErrorMessage = null
-                onClearExternalError()
-                coroutineScope.launch {
-                  val result = ClerkAuthRepository.signIn(email, password)
-                  isLoading = false
-                  if (result.success) {
-                    onSignInSuccess(email.trim())
-                  } else {
-                    localErrorMessage = result.errorMessage ?: "Authentication failed with Clerk."
-                  }
-                }
-              }
-              .testTag("sign_in_button"),
-            contentAlignment = Alignment.Center
-          ) {
-            if (isLoading) {
-              CircularProgressIndicator(
-                color = Color.White,
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.5.dp
-              )
-            } else {
+                .testTag("btn_google_signin"),
+              color = Color.White.copy(alpha = 0.92f),
+              shape = RoundedCornerShape(14.dp)
+            ) {
               Row(
+                modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
               ) {
-                Text(
-                  text = "Sign In",
-                  color = NumoWhite,
-                  fontSize = 16.sp,
-                  fontWeight = FontWeight.Bold,
-                  letterSpacing = 0.2.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                  text = "→",
-                  color = NumoWhite,
-                  fontSize = 18.sp,
-                  fontWeight = FontWeight.Bold
-                )
-              }
-            }
-          }
-
-          Spacer(modifier = Modifier.height(20.dp))
-
-          // "Or" Divider
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            HorizontalDivider(
-              modifier = Modifier.weight(1f),
-              thickness = 1.dp,
-              color = NumoBorder
-            )
-            Text(
-              text = "Or",
-              color = NumoSubText,
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Medium,
-              modifier = Modifier.padding(horizontal = 14.dp)
-            )
-            HorizontalDivider(
-              modifier = Modifier.weight(1f),
-              thickness = 1.dp,
-              color = NumoBorder
-            )
-          }
-
-          Spacer(modifier = Modifier.height(18.dp))
-
-          // Social Auth Buttons: Google & Apple
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-          ) {
-            // Google Button (Calls Clerk OAuth Google account picker)
-            Box(
-              modifier = Modifier
-                .weight(1f)
-                .height(50.dp)
-                .clip(RoundedCornerShape(25.dp))
-                .border(1.2.dp, NumoBorder, RoundedCornerShape(25.dp))
-                .background(NumoWhite)
-                .clickable(enabled = !isOAuthLoading) { onGoogleClick() }
-                .testTag("google_auth_button"),
-              contentAlignment = Alignment.Center
-            ) {
-              if (isOAuthLoading) {
-                CircularProgressIndicator(
-                  color = NumoEmeraldStart,
-                  modifier = Modifier.size(20.dp),
-                  strokeWidth = 2.dp
-                )
-              } else {
                 Image(
                   painter = painterResource(id = R.drawable.ic_google),
-                  contentDescription = "Sign in with Google via Clerk",
-                  modifier = Modifier.size(22.dp)
+                  contentDescription = "Google Logo",
+                  modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                  text = "Sign in with Google",
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = Color(0xFF0F172A)
                 )
               }
             }
 
-            // Apple Button (Calls Clerk OAuth Apple)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // "Sign in with Apple" Button
+            Surface(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, NumoElementsCorners, RoundedCornerShape(14.dp))
+                .bouncyClickable(enabled = !isLoading && !isOAuthLoading) {
+                  onAppleClick()
+                }
+                .testTag("btn_apple_signin"),
+              color = Color.White.copy(alpha = 0.92f),
+              shape = RoundedCornerShape(14.dp)
+            ) {
+              Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+              ) {
+                Image(
+                  painter = painterResource(id = R.drawable.ic_apple),
+                  contentDescription = "Apple Logo",
+                  modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                  text = "Sign in with Apple",
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = Color(0xFF0F172A)
+                )
+              }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // "Use Email" Divider
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                color = Color(0xFFC7E2D9),
+                thickness = 1.dp
+              )
+              Text(
+                text = "Use Email",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal,
+                color = NumoSlateGreen,
+                modifier = Modifier.padding(horizontal = 12.dp)
+              )
+              HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                color = Color(0xFFC7E2D9),
+                thickness = 1.dp
+              )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // "Email Address" Label
+            Text(
+              text = "Email Address",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = NumoDarkForestGreen
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Email Address Input Field
             Box(
               modifier = Modifier
-                .weight(1f)
-                .height(50.dp)
-                .clip(RoundedCornerShape(25.dp))
-                .border(1.2.dp, NumoBorder, RoundedCornerShape(25.dp))
-                .background(NumoWhite)
-                .clickable(enabled = !isOAuthLoading) { onAppleClick() }
-                .testTag("apple_auth_button"),
-              contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(NumoInputBg)
+                .border(
+                  width = 1.5.dp,
+                  color = NumoDarkForestGreen,
+                  shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp),
+              contentAlignment = Alignment.CenterStart
             ) {
-              Image(
-                painter = painterResource(id = R.drawable.ic_apple),
-                contentDescription = "Sign in with Apple via Clerk",
-                modifier = Modifier.size(22.dp)
+              if (email.isEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Text(
+                    text = "| ",
+                    fontSize = 14.sp,
+                    color = NumoDarkForestGreen,
+                    fontWeight = FontWeight.Light
+                  )
+                  Text(
+                    text = "Email Address",
+                    fontSize = 13.sp,
+                    color = NumoInputPlaceholder
+                  )
+                }
+              }
+              BasicTextField(
+                value = email,
+                onValueChange = { email = it },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("input_signin_email"),
+                textStyle = TextStyle(
+                  fontSize = 13.5.sp,
+                  color = Color(0xFF0F172A),
+                  fontWeight = FontWeight.Normal
+                ),
+                singleLine = true,
+                cursorBrush = SolidColor(NumoDarkForestGreen),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+              )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // "Password" Label
+            Text(
+              text = "Password",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = NumoDarkForestGreen
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Password Input Field
+            Box(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(NumoInputBg)
+                .border(
+                  width = 1.dp,
+                  color = NumoElementsCorners,
+                  shape = RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp),
+              contentAlignment = Alignment.CenterStart
+            ) {
+              if (password.isEmpty()) {
+                Text(
+                  text = "Password",
+                  fontSize = 13.sp,
+                  color = NumoInputPlaceholder
+                )
+              }
+              BasicTextField(
+                value = password,
+                onValueChange = { password = it },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("input_signin_password"),
+                textStyle = TextStyle(
+                  fontSize = 13.5.sp,
+                  color = Color(0xFF0F172A),
+                  fontWeight = FontWeight.Normal
+                ),
+                singleLine = true,
+                cursorBrush = SolidColor(NumoDarkForestGreen),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+              )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // "Forgot Password?" Link
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.End
+            ) {
+              Text(
+                text = "Forgot Password?",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = NumoSlateGreen,
+                modifier = Modifier
+                  .clickable {
+                    onForgotPasswordClick(email.trim())
+                  }
+                  .testTag("link_forgot_password")
+              )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // "Sign In" Action Button
+            Surface(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, NumoActionButtonBorder, RoundedCornerShape(14.dp))
+                .bouncyClickable(enabled = !isLoading && !isOAuthLoading) {
+                  if (email.isBlank() || password.isBlank()) {
+                    localErrorMessage = "Please enter both your email address and password."
+                    return@bouncyClickable
+                  }
+
+                  isLoading = true
+                  localErrorMessage = null
+                  onClearExternalError()
+
+                  coroutineScope.launch {
+                    val result = ClerkAuthRepository.signIn(
+                      email = email.trim(),
+                      pass = password
+                    )
+                    isLoading = false
+
+                    if (result.success) {
+                      onSignInSuccess(email.trim())
+                    } else {
+                      localErrorMessage = result.errorMessage ?: "Invalid email or password."
+                    }
+                  }
+                }
+                .testTag("btn_signin_submit"),
+              color = NumoActionButtonBg,
+              shape = RoundedCornerShape(14.dp)
+            ) {
+              Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+              ) {
+                if (isLoading || isOAuthLoading) {
+                  CircularProgressIndicator(
+                    color = NumoDarkForestGreen,
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                  )
+                } else {
+                  Text(
+                    text = "Sign In",
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NumoDarkForestGreen
+                  )
+                }
+              }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 4. "Don't have an account? Sign Up" Action Button inside card
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .bouncyClickable { onSignUpClick() }
+                .padding(vertical = 6.dp),
+              horizontalArrangement = Arrangement.Center,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = "Don't have an account? ",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = NumoSlateGreen
+              )
+              Text(
+                text = "Sign Up",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = NumoDarkForestGreen,
+                modifier = Modifier.testTag("link_to_signup")
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Next to Sign Up",
+                tint = NumoDarkForestGreen,
+                modifier = Modifier.size(14.dp)
               )
             }
           }
-
-          Spacer(modifier = Modifier.height(22.dp))
-
-          // Footer: Don't have an account? Sign Up
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onSignUpClick() }
-              .testTag("sign_up_link")
-          ) {
-            Text(
-              text = "Don't have an account? ",
-              color = Color(0xFF486581),
-              fontSize = 14.sp,
-              fontWeight = FontWeight.Medium
-            )
-            Text(
-              text = "Sign Up",
-              color = NumoEmeraldStart,
-              fontSize = 14.sp,
-              fontWeight = FontWeight.Bold
-            )
-          }
-
-          Spacer(modifier = Modifier.height(12.dp))
         }
-      }
-    }
 
-    // Floating Error Notification (hovers at bottom above controls without pushing content)
-    androidx.compose.animation.AnimatedVisibility(
-      visible = displayedError != null,
-      enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + androidx.compose.animation.fadeIn(),
-      exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + androidx.compose.animation.fadeOut(),
-      modifier = Modifier
-        .align(Alignment.BottomCenter)
-        .navigationBarsPadding()
-        .padding(horizontal = 20.dp, vertical = 16.dp)
-    ) {
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x33B91C1C), spotColor = Color(0x4DB91C1C))
-          .clip(RoundedCornerShape(16.dp))
-          .background(Color(0xFFFEF2F2))
-          .border(1.2.dp, Color(0xFFEF4444), RoundedCornerShape(16.dp))
-          .padding(horizontal = 16.dp, vertical = 12.dp)
-      ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Box(
-            modifier = Modifier
-              .size(24.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(Color(0xFFEF4444)),
-            contentAlignment = Alignment.Center
-          ) {
-            Text(
-              text = "!",
-              color = Color.White,
-              fontWeight = FontWeight.Bold,
-              fontSize = 14.sp
-            )
-          }
-          Spacer(modifier = Modifier.width(12.dp))
-          Text(
-            text = displayedError ?: "",
-            color = Color(0xFF991B1B),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text(
-            text = "✕",
-            color = Color(0xFF991B1B),
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            modifier = Modifier
-              .clickable {
-                localErrorMessage = null
-                onClearExternalError()
-              }
-              .padding(4.dp)
-          )
-        }
+        Spacer(modifier = Modifier.height(16.dp))
       }
     }
   }

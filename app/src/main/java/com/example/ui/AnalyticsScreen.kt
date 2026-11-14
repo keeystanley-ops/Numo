@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -83,12 +84,13 @@ fun AnalyticsScreen(
   onBack: () -> Unit = {}
 ) {
   var selectedPeriod by remember { mutableStateOf("Month") }
+  var selectedBarIndex by remember { mutableIntStateOf(5) }
   val scrollState = rememberScrollState()
 
   // Target spending amount depends on period
   val targetSpending = when (selectedPeriod) {
-    "Week" -> 18250
-    "Year" -> 840500
+    "Week" -> 18420
+    "Year" -> 892500
     else -> 78420
   }
 
@@ -239,13 +241,20 @@ fun AnalyticsScreen(
         Spacer(modifier = Modifier.height(18.dp))
 
         // 4. Bar & Area Chart with Progressive Render & Animated Tooltip
+        val currentBarAmounts = when (selectedPeriod) {
+          "Week" -> listOf(2100, 3850, 2800, 4900, 3500, 4550)
+          "Year" -> listOf(420000, 510000, 590000, 670000, 740000, 840500)
+          else -> listOf(45200, 40100, 65400, 50200, 60800, 98420)
+        }
+        val selectedBarAmount = currentBarAmounts.getOrElse(selectedBarIndex) { 98420 }
+
         Box(
           modifier = Modifier
             .fillMaxWidth()
             .height(210.dp)
             .staggeredEntrance(index = 2, baseDelayMs = 80)
         ) {
-          // Animated Tooltip Badge above June bar
+          // Animated Tooltip Badge
           val tooltipAlpha by animateFloatAsState(
             targetValue = if (chartProgress > 0.7f) 1f else 0f,
             animationSpec = tween(durationMillis = 300),
@@ -269,7 +278,7 @@ fun AnalyticsScreen(
                   .padding(horizontal = 10.dp, vertical = 4.dp)
               ) {
                 Text(
-                  text = "$currency 98,420",
+                  text = "$currency ${formatAmount(selectedBarAmount)}",
                   fontSize = 11.sp,
                   fontWeight = FontWeight.Bold,
                   color = Color.White
@@ -363,16 +372,33 @@ fun AnalyticsScreen(
                   // 2. Draw 6 rounded vertical bars with staggered growth
                   for (i in 0 until count) {
                     val centerX = stepX * (i + 0.5f)
-                    // Slightly stagger bar reveals
                     val barStagger = ((p - i * 0.05f) / (1f - i * 0.05f)).coerceIn(0f, 1f)
                     val barHeight = size.height * baseBarHeights[i] * barStagger
                     val topY = size.height - barHeight
 
+                    val barColor = if (i == selectedBarIndex) {
+                      Color(0xFF015B35)
+                    } else {
+                      Color(0xFF02844E).copy(alpha = 0.80f)
+                    }
+
                     drawRoundRect(
-                      color = Color(0xFF02844E),
+                      color = barColor,
                       topLeft = Offset(centerX - barWidth / 2, topY),
                       size = Size(barWidth, barHeight),
                       cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
+                    )
+                  }
+                }
+
+                // Interactive tap overlay for each of the 6 bars
+                Row(modifier = Modifier.fillMaxSize()) {
+                  for (i in 0 until 6) {
+                    Box(
+                      modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .clickable { selectedBarIndex = i }
                     )
                   }
                 }
@@ -390,12 +416,13 @@ fun AnalyticsScreen(
                   "Year" -> listOf("'21", "'22", "'23", "'24", "'25", "'26")
                   else -> listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun")
                 }
-                months.forEach { label ->
+                months.forEachIndexed { i, label ->
                   Text(
                     text = label,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF64748B)
+                    fontWeight = if (i == selectedBarIndex) FontWeight.Bold else FontWeight.Medium,
+                    color = if (i == selectedBarIndex) Color(0xFF02844E) else Color(0xFF64748B),
+                    modifier = Modifier.clickable { selectedBarIndex = i }
                   )
                 }
               }

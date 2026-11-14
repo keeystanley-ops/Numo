@@ -104,7 +104,8 @@ fun HomeScreen(
   onNavigateToInsights: () -> Unit = {},
   onNavigateToProfile: () -> Unit = {},
   onNavigateToGoals: () -> Unit = {},
-  onNavigateToBudget: () -> Unit = {}
+  onNavigateToBudget: () -> Unit = {},
+  onNavigateToInvestments: () -> Unit = {}
 ) {
   var showSendModal by remember { mutableStateOf(false) }
   var showReceiveModal by remember { mutableStateOf(false) }
@@ -163,7 +164,54 @@ fun HomeScreen(
           .verticalScroll(scrollState)
           .padding(horizontal = 20.dp)
       ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Dual-Environment Switcher Pill (PLAN.md Section 4.1)
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp),
+          horizontalArrangement = Arrangement.Center
+        ) {
+          Row(
+            modifier = Modifier
+              .clip(RoundedCornerShape(20.dp))
+              .background(Color(0xFFE2E8F0))
+              .padding(3.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF02844E))
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = "Money",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+            }
+
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.Transparent)
+                .bouncyClickable { onNavigateToInvestments() }
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = "Investments",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF64748B)
+              )
+            }
+          }
+        }
 
         // 1. Expanded Header (Greeting + Name + Bell + Avatar) with smooth alpha fade
         Row(

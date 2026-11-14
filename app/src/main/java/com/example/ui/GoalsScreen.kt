@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.data.NumoFinancialEngine
 import com.example.ui.animation.TopScrollProgressBar
 import com.example.ui.animation.animateIntCount
 import com.example.ui.animation.animateProgress
@@ -138,7 +139,10 @@ fun GoalsScreen(
     AddGoalDialog(
       currency = currency,
       onDismiss = { showAddGoalDialog = false },
-      onSave = { _, _ -> showAddGoalDialog = false }
+      onSave = { title, amt ->
+        NumoFinancialEngine.addGoal(title, amt.toDouble())
+        showAddGoalDialog = false
+      }
     )
   }
 }
@@ -328,57 +332,39 @@ fun GoalsMainContent(
       Spacer(modifier = Modifier.height(18.dp))
 
       if (selectedPillTab == 0) {
-        // 1. Emergency Fund (48%)
-        GoalCardItem(
-          title = "Emergency Fund",
-          currentAmount = 120000,
-          targetAmount = 250000,
-          percentage = 48,
-          currency = currency,
-          icon = Icons.Default.Shield,
-          iconBg = Color(0xFFE8F8F2),
-          iconTint = Color(0xFF02844E),
-          progressColor = Color(0xFF02844E),
-          delayMs = 80,
-          onClick = { onGoalClick("Emergency Fund") },
-          testTag = "goal_emergency_fund"
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 2. Dream Vacation (0%)
-        GoalCardItem(
-          title = "Dream Vacation",
-          currentAmount = 0,
-          targetAmount = 200000,
-          percentage = 0,
-          currency = currency,
-          icon = Icons.Default.Flight,
-          iconBg = Color(0xFFEFF6FF),
-          iconTint = Color(0xFF2563EB),
-          progressColor = Color(0xFF2563EB),
-          delayMs = 120,
-          onClick = { onGoalClick("Dream Vacation") },
-          testTag = "goal_dream_vacation"
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 3. New Laptop (60%)
-        GoalCardItem(
-          title = "New Laptop",
-          currentAmount = 60000,
-          targetAmount = 100000,
-          percentage = 60,
-          currency = currency,
-          icon = Icons.Default.Laptop,
-          iconBg = Color(0xFFF5F3FF),
-          iconTint = Color(0xFF7C3AED),
-          progressColor = Color(0xFF7C3AED),
-          delayMs = 160,
-          onClick = { onGoalClick("New Laptop") },
-          testTag = "goal_new_laptop"
-        )
+        NumoFinancialEngine.goals.forEachIndexed { index, g ->
+          GoalCardItem(
+            title = g.title,
+            currentAmount = g.savedAmount.toInt(),
+            targetAmount = g.targetAmount.toInt(),
+            percentage = g.percentage,
+            currency = currency,
+            icon = when (g.iconType) {
+              "Flight" -> Icons.Default.Flight
+              "Laptop" -> Icons.Default.Laptop
+              else -> Icons.Default.Shield
+            },
+            iconBg = when (g.iconType) {
+              "Flight" -> Color(0xFFEFF6FF)
+              "Laptop" -> Color(0xFFF5F3FF)
+              else -> Color(0xFFE8F8F2)
+            },
+            iconTint = when (g.iconType) {
+              "Flight" -> Color(0xFF2563EB)
+              "Laptop" -> Color(0xFF7C3AED)
+              else -> Color(0xFF02844E)
+            },
+            progressColor = when (g.iconType) {
+              "Flight" -> Color(0xFF2563EB)
+              "Laptop" -> Color(0xFF7C3AED)
+              else -> Color(0xFF02844E)
+            },
+            delayMs = 80 + index * 40,
+            onClick = { onGoalClick(g.title) },
+            testTag = "goal_${g.title.lowercase().replace(" ", "_")}"
+          )
+          Spacer(modifier = Modifier.height(12.dp))
+        }
       } else {
         // SUGGESTED GOALS
         GoalCardItem(
@@ -392,7 +378,10 @@ fun GoalsMainContent(
           iconTint = Color(0xFFF59E0B),
           progressColor = Color(0xFFF59E0B),
           delayMs = 80,
-          onClick = { onAddGoalClick() },
+          onClick = {
+            NumoFinancialEngine.addGoal("Home Down Payment", 1500000.0)
+            onPillTabSelected(0)
+          },
           testTag = "goal_suggested_home"
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -407,7 +396,10 @@ fun GoalsMainContent(
           iconTint = Color(0xFF02844E),
           progressColor = Color(0xFF02844E),
           delayMs = 120,
-          onClick = { onAddGoalClick() },
+          onClick = {
+            NumoFinancialEngine.addGoal("Retirement Booster", 500000.0)
+            onPillTabSelected(0)
+          },
           testTag = "goal_suggested_retire"
         )
       }
@@ -531,12 +523,18 @@ fun GoalProgressDetailScreen(
   currency: String,
   onBack: () -> Unit
 ) {
-  var monthlyContrib by remember { mutableIntStateOf(10000) }
-  var showEditContribDialog by remember { mutableStateOf(false) }
+  val matchedGoal = NumoFinancialEngine.goals.find { it.title.equals(goalName, ignoreCase = true) }
+    ?: NumoFinancialEngine.goals.firstOrNull()
 
-  val targetPercent = 72
-  val currentSaved = 180000
-  val totalGoal = 250000
+  var monthlyContrib by remember(matchedGoal?.title) {
+    mutableIntStateOf(matchedGoal?.monthlyContribution?.toInt() ?: 10000)
+  }
+  var showEditContribDialog by remember { mutableStateOf(false) }
+  var depositSuccessMessage by remember { mutableStateOf<String?>(null) }
+
+  val targetPercent = matchedGoal?.percentage ?: 72
+  val currentSaved = (matchedGoal?.savedAmount ?: 180000.0).toInt()
+  val totalGoal = (matchedGoal?.targetAmount ?: 250000.0).toInt()
 
   val animatedPercent = animateProgress(targetPercent / 100f, durationMs = 1000)
   val animatedSaved = animateIntCount(currentSaved, durationMs = 900)
@@ -795,12 +793,58 @@ fun GoalProgressDetailScreen(
 
       Spacer(modifier = Modifier.height(24.dp))
 
+      Spacer(modifier = Modifier.height(20.dp))
+
+      if (depositSuccessMessage != null) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFE8FBF4))
+            .padding(vertical = 10.dp, horizontal = 14.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = depositSuccessMessage ?: "",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF02844E)
+          )
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+      }
+
+      // Action 1: Instant Contribution Button
+      Button(
+        onClick = {
+          if (matchedGoal != null) {
+            val depositAmt = 5000.0
+            NumoFinancialEngine.contributeToGoal(matchedGoal.title, depositAmt)
+            depositSuccessMessage = "+$currency 5,000 deposited to ${matchedGoal.title}!"
+          }
+        },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(52.dp)
+          .bouncyClickable { },
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF02844E)),
+        shape = RoundedCornerShape(16.dp)
+      ) {
+        Text("Contribute $currency 5,000", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Action 2: Back / Done Button
       Button(
         onClick = onBack,
         modifier = Modifier
           .fillMaxWidth()
-          .height(50.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF02844E)),
+          .height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+          containerColor = Color(0xFFF1F5F9),
+          contentColor = Color(0xFF0F172A)
+        ),
         shape = RoundedCornerShape(16.dp)
       ) {
         Text("Done", fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -842,7 +886,9 @@ fun GoalProgressDetailScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Button(
               onClick = {
-                monthlyContrib = tempContrib.toIntOrNull() ?: monthlyContrib
+                val parsed = tempContrib.toIntOrNull() ?: monthlyContrib
+                monthlyContrib = parsed
+                matchedGoal?.monthlyContribution = parsed.toDouble()
                 showEditContribDialog = false
               },
               colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF02844E))

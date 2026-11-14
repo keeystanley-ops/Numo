@@ -20,816 +20,696 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.CurrencyExchange
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.data.DiscoveredWallet
-import com.example.data.WalletIntelligenceService
-import kotlinx.coroutines.launch
+import com.example.data.CurrencyRepository
+import com.example.ui.theme.NumoDarkForestGreen
+import com.example.ui.theme.NumoGlassCardBg
+import com.example.ui.theme.NumoGlassCardBorder
+import com.example.ui.theme.NumoMintBackground
+import com.example.ui.theme.NumoSlateGreen
 
-data class ConfiguredAccount(
+data class ConnectedAccountItem(
   val id: String,
   val name: String,
-  val category: String,
-  val balance: String,
-  val annualInterestPercent: Double,
-  val yieldDescription: String,
-  val brandColorHex: String,
-  val iconType: String
+  val institution: String,
+  val balance: String
 )
 
 /**
- * Step 2 of Onboarding: Dynamic Wallet & Account Setup.
- * No hardcoded wallets. Powered by Gemini / WalletIntelligenceService to discover,
- * analyze, and configure any financial wallet, bank, or MMF typed by the user in ~1-2s.
+ * Screen 2 of Onboarding: "Connect Accounts"
+ * Matches screenshot image_c32814bd.png (center screen) identically:
+ * - Mint background (#E5F6F1)
+ * - Centered 3D Frosted Glass "N" pebble emblem
+ * - Centered title: "Connect Accounts"
+ * - Frosted pill input: "Search banks or services..."
+ * - Frosted Starting Balance card: "Starting Balance", formatted currency balance, currency name, divider, "Transactions: 1"
+ * - "CONNECTED ACCOUNTS" uppercase header
+ * - Frosted pill input: "Search connected accounts..."
+ * - List of connected accounts (if any added)
+ * - Frosted pill button: "FINISH SETUP"
+ * - Subtext button: "+ Link a New Account"
  */
 @Composable
 fun OnboardingAccountsScreen(
   currency: String = "KES",
-  onBack: () -> Unit,
+  onBack: () -> Unit = {},
   onComplete: (selectedAccounts: List<Pair<String, String>>) -> Unit
 ) {
-  val coroutineScope = rememberCoroutineScope()
-  val keyboardController = LocalSoftwareKeyboardController.current
+  val currencyInfo = remember(currency) { CurrencyRepository.findByCode(currency) }
 
-  var searchQuery by remember { mutableStateOf("") }
-  var isSearching by remember { mutableStateOf(false) }
-  var discoveredWallet by remember { mutableStateOf<DiscoveredWallet?>(null) }
-  var customStartingBalance by remember { mutableStateOf("") }
+  var serviceSearchQuery by remember { mutableStateOf("") }
+  var accountSearchQuery by remember { mutableStateOf("") }
 
-  // The list of accounts the user has added
-  val userAccounts = remember { mutableStateListOf<ConfiguredAccount>() }
+  var balanceAmount by remember { mutableStateOf("48,200") }
+  var isEditingBalance by remember { mutableStateOf(false) }
+  var editBalanceInput by remember { mutableStateOf(balanceAmount) }
 
-  val samplePills = listOf(
+  var showLinkDialog by remember { mutableStateOf(false) }
+  var newAccountName by remember { mutableStateOf("") }
+  var newAccountBalance by remember { mutableStateOf("10,000") }
+
+  // Default initial account
+  val connectedAccounts = remember {
+    mutableStateListOf<ConnectedAccountItem>()
+  }
+
+  // Pre-configured bank suggestions when linking
+  val suggestedInstitutions = listOf(
     "M-PESA",
-    "Etica MMF",
     "KCB Bank",
-    "Zidisha MMF",
-    "M-Shwari",
-    "Sanlam MMF",
     "Equity Bank",
-    "Stima SACCO",
-    "Cash on Hand"
+    "Co-operative Bank",
+    "NCBA Bank",
+    "Stanbic Bank",
+    "Absa Bank",
+    "Standard Chartered",
+    "Cash Wallet"
   )
-
-  fun resolveIcon(iconType: String): ImageVector {
-    return when (iconType.uppercase()) {
-      "PHONE" -> Icons.Default.PhoneAndroid
-      "TRENDING_UP" -> Icons.Default.TrendingUp
-      "BANK" -> Icons.Default.AccountBalance
-      "SAVINGS" -> Icons.Default.Savings
-      "CARD" -> Icons.Default.CreditCard
-      "CASH" -> Icons.Default.Payments
-      "CRYPTO" -> Icons.Default.CurrencyExchange
-      else -> Icons.Default.AccountBalance
-    }
-  }
-
-  fun parseColor(hex: String): Color {
-    return try {
-      val clean = hex.removePrefix("#")
-      Color(android.graphics.Color.parseColor("#$clean"))
-    } catch (e: Exception) {
-      Color(0xFF029766)
-    }
-  }
-
-  fun performSearch(queryText: String) {
-    if (queryText.isBlank()) return
-    keyboardController?.hide()
-    isSearching = true
-    coroutineScope.launch {
-      val result = WalletIntelligenceService.searchAndAnalyzeWallet(queryText)
-      discoveredWallet = result
-      customStartingBalance = result.defaultBalance
-      isSearching = false
-    }
-  }
-
-  // Initial trigger: Search M-PESA so user immediately sees how it works on arrival
-  LaunchedEffect(Unit) {
-    if (discoveredWallet == null && userAccounts.isEmpty()) {
-      performSearch("M-PESA")
-    }
-  }
 
   Surface(
     modifier = Modifier.fillMaxSize(),
-    color = Color(0xFFF7FDFB)
+    color = NumoMintBackground
   ) {
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .background(
-          brush = Brush.verticalGradient(
-            colors = listOf(
-              Color(0xFFD2FCEF),
-              Color(0xFFE6FAF3),
-              Color(0xFFF4FDF9),
-              Color(0xFFFFFFFF)
-            )
-          )
-        )
         .statusBarsPadding()
         .navigationBarsPadding()
     ) {
       Column(
         modifier = Modifier
           .fillMaxSize()
-          .verticalScroll(rememberScrollState())
-          .padding(horizontal = 20.dp),
+          .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
       ) {
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 1. Centered 3D Frosted Glass "N" Pebble Emblem
+        Image(
+          painter = painterResource(id = R.drawable.ic_numo_n_pebble),
+          contentDescription = "Numo N Logo",
+          modifier = Modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x181E5631), ambientColor = Color(0x0C1E5631))
+            .testTag("onboarding_accounts_logo"),
+          contentScale = ContentScale.Fit
+        )
+
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Top Navigation & Step Indicator
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically
+        // 2. Centered Title
+        Text(
+          text = "Connect Accounts",
+          fontSize = 21.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDarkForestGreen,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.testTag("connect_accounts_title")
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. Top Frosted Pill Search Bar ("Search banks or services...")
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .shadow(
+              elevation = 2.dp,
+              shape = RoundedCornerShape(16.dp),
+              spotColor = Color(0x101E5631),
+              ambientColor = Color(0x081E5631)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(NumoGlassCardBg)
+            .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp),
+          contentAlignment = Alignment.CenterStart
         ) {
-          Box(
-            modifier = Modifier
-              .size(38.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(Color.White.copy(alpha = 0.85f))
-              .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-              .clickable { onBack() },
-            contentAlignment = Alignment.Center
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
           ) {
             Icon(
-              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-              contentDescription = "Back",
-              tint = Color(0xFF001A49),
+              imageVector = Icons.Default.Search,
+              contentDescription = "Search banks",
+              tint = NumoSlateGreen,
               modifier = Modifier.size(18.dp)
             )
-          }
-
-          Spacer(modifier = Modifier.width(14.dp))
-
-          Column(modifier = Modifier.weight(1f)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Text(
-                text = "STEP 2 OF 2",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF029766),
-                letterSpacing = 1.2.sp
-              )
-              Text(
-                text = "Dynamic Account Setup",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF64748B)
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+              value = serviceSearchQuery,
+              onValueChange = { serviceSearchQuery = it },
+              singleLine = true,
+              textStyle = TextStyle(
+                color = NumoDarkForestGreen,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+              ),
+              cursorBrush = SolidColor(NumoDarkForestGreen),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("search_banks_input"),
+              decorationBox = { innerTextField ->
+                if (serviceSearchQuery.isEmpty()) {
+                  Text(
+                    text = "Search banks or services...",
+                    color = NumoSlateGreen.copy(alpha = 0.65f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal
+                  )
+                }
+                innerTextField()
+              }
+            )
+            if (serviceSearchQuery.isNotEmpty()) {
+              Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Clear",
+                tint = NumoSlateGreen,
+                modifier = Modifier
+                  .size(16.dp)
+                  .clickable { serviceSearchQuery = "" }
               )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            LinearProgressIndicator(
-              progress = { 1f },
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(CircleShape),
-              color = Color(0xFF029766),
-              trackColor = Color(0xFFE2E8F0)
-            )
+          }
+        }
+
+        // Suggestions Dropdown if user is typing
+        AnimatedVisibility(
+          visible = serviceSearchQuery.isNotBlank(),
+          enter = fadeIn(),
+          exit = fadeOut()
+        ) {
+          val filteredInstitutions = suggestedInstitutions.filter {
+            it.contains(serviceSearchQuery, ignoreCase = true)
+          }
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(top = 4.dp)
+              .clip(RoundedCornerShape(14.dp))
+              .background(NumoGlassCardBg)
+              .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(14.dp))
+              .padding(vertical = 4.dp)
+          ) {
+            if (filteredInstitutions.isEmpty()) {
+              Text(
+                text = "+ Add \"$serviceSearchQuery\" as Custom Account",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = NumoDarkForestGreen,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clickable {
+                    connectedAccounts.add(
+                      ConnectedAccountItem(
+                        id = System.currentTimeMillis().toString(),
+                        name = serviceSearchQuery,
+                        institution = serviceSearchQuery,
+                        balance = "0"
+                      )
+                    )
+                    serviceSearchQuery = ""
+                  }
+                  .padding(horizontal = 14.dp, vertical = 10.dp)
+              )
+            } else {
+              filteredInstitutions.forEach { inst ->
+                Text(
+                  text = "+ Connect $inst",
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = NumoDarkForestGreen,
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                      connectedAccounts.add(
+                        ConnectedAccountItem(
+                          id = System.currentTimeMillis().toString(),
+                          name = inst,
+                          institution = inst,
+                          balance = "25,000"
+                        )
+                      )
+                      serviceSearchQuery = ""
+                    }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+              }
+            }
           }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Logo & Title
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.Center,
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Image(
-            painter = painterResource(id = R.drawable.ic_numo_leaf),
-            contentDescription = "Numo Brand Logo",
-            modifier = Modifier
-              .size(width = 44.dp, height = 34.dp)
-              .testTag("onboarding_accounts_logo"),
-            contentScale = ContentScale.Fit
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text(
-            text = "Connect Accounts",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            color = Color(0xFF001A49)
-          )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-          text = "Type any wallet, bank, or Money Market Fund (e.g. M-PESA, Etica MMF, KCB). AI discovers its behavior and compound yields in 1-2s.",
-          fontSize = 12.sp,
-          color = Color(0xFF475569),
-          textAlign = TextAlign.Center,
-          lineHeight = 16.sp
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Search Input Bar
-        Row(
+        // 4. Frosted Glass Starting Balance Card
+        Box(
           modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x1A029766))
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White)
-            .border(1.5.dp, Color(0xFF029766), RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp),
-          verticalAlignment = Alignment.CenterVertically
+            .shadow(
+              elevation = 3.dp,
+              shape = RoundedCornerShape(22.dp),
+              spotColor = Color(0x151E5631),
+              ambientColor = Color(0x0A1E5631)
+            )
+            .clip(RoundedCornerShape(22.dp))
+            .background(NumoGlassCardBg)
+            .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(22.dp))
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+            .testTag("starting_balance_card")
         ) {
-          Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = Color(0xFF029766),
-            modifier = Modifier.size(20.dp)
-          )
-          Spacer(modifier = Modifier.width(10.dp))
-          BasicTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            singleLine = true,
-            textStyle = TextStyle(
-              color = Color(0xFF001A49),
-              fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { performSearch(searchQuery) }),
-            cursorBrush = SolidColor(Color(0xFF029766)),
-            modifier = Modifier
-              .weight(1f)
-              .testTag("account_search_input"),
-            decorationBox = { innerTextField ->
-              if (searchQuery.isEmpty()) {
-                Text(
-                  text = "Type wallet/MMF (e.g. Etica, M-PESA, KCB)...",
-                  color = Color(0xFF94A3B8),
-                  fontSize = 13.sp
-                )
-              }
-              innerTextField()
-            }
-          )
+          Column {
+            Text(
+              text = "Starting Balance",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Normal,
+              color = NumoSlateGreen
+            )
 
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(10.dp))
-              .background(Color(0xFF029766))
-              .clickable { performSearch(searchQuery) }
-              .padding(horizontal = 12.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
-          ) {
-            if (isSearching) {
-              CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
-              )
-            } else {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                  imageVector = Icons.Default.AutoAwesome,
-                  contentDescription = "AI Search",
-                  tint = Color.White,
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                  text = "Search",
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color.White
-                )
-              }
-            }
-          }
-        }
+            Spacer(modifier = Modifier.height(4.dp))
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Quick Suggestion Pills
-        LazyRow(
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          items(samplePills) { pill ->
-            Box(
+            Row(
               modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.9f))
-                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                .fillMaxWidth()
                 .clickable {
-                  searchQuery = pill
-                  performSearch(pill)
-                }
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                  editBalanceInput = balanceAmount
+                  isEditingBalance = true
+                },
+              verticalAlignment = Alignment.CenterVertically
             ) {
               Text(
-                text = "+ $pill",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF029766)
-              )
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Live Discovered Wallet Card
-        discoveredWallet?.let { wallet ->
-          val brandColor = parseColor(wallet.brandColorHex)
-          val icon = resolveIcon(wallet.iconType)
-
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(22.dp),
-                ambientColor = Color(0x33029766),
-                spotColor = Color(0x40029766)
-              )
-              .clip(RoundedCornerShape(22.dp))
-              .background(Color.White)
-              .border(1.8.dp, brandColor.copy(alpha = 0.8f), RoundedCornerShape(22.dp))
-              .padding(18.dp)
-          ) {
-            Column {
-              // Top Bar: AI Verified Tag & Category
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Box(
-                    modifier = Modifier
-                      .clip(RoundedCornerShape(8.dp))
-                      .background(Color(0xFF029766).copy(alpha = 0.15f))
-                      .padding(horizontal = 8.dp, vertical = 3.dp)
-                  ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                      Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "AI",
-                        tint = Color(0xFF029766),
-                        modifier = Modifier.size(12.dp)
-                      )
-                      Spacer(modifier = Modifier.width(4.dp))
-                      Text(
-                        text = "AI Verified Intelligence",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF029766)
-                      )
-                    }
-                  }
-                }
-
-                Box(
-                  modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(brandColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                  Text(
-                    text = wallet.category,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = brandColor
-                  )
-                }
-              }
-
-              Spacer(modifier = Modifier.height(12.dp))
-
-              // Icon & Institution
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Box(
-                  modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(brandColor.copy(alpha = 0.15f)),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    imageVector = icon,
-                    contentDescription = wallet.name,
-                    tint = brandColor,
-                    modifier = Modifier.size(26.dp)
-                  )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
-                  Text(
-                    text = wallet.name,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF001A49)
-                  )
-                  Text(
-                    text = wallet.institution,
-                    fontSize = 12.sp,
-                    color = Color(0xFF64748B)
-                  )
-                }
-              }
-
-              Spacer(modifier = Modifier.height(12.dp))
-
-              // Financial Behavior Highlight
-              Box(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clip(RoundedCornerShape(12.dp))
-                  .background(
-                    if (wallet.annualInterestPercent > 0) Color(0xFFF0FDF8) else Color(0xFFF8FAFC)
-                  )
-                  .border(
-                    1.dp,
-                    if (wallet.annualInterestPercent > 0) Color(0xFF86EFAC) else Color(0xFFE2E8F0),
-                    RoundedCornerShape(12.dp)
-                  )
-                  .padding(12.dp)
-              ) {
-                Column {
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                      text = if (wallet.annualInterestPercent > 0) "📈 " else "💳 ",
-                      fontSize = 13.sp
-                    )
-                    Text(
-                      text = wallet.yieldDescription,
-                      fontSize = 12.sp,
-                      fontWeight = FontWeight.Bold,
-                      color = if (wallet.annualInterestPercent > 0) Color(0xFF029766) else Color(0xFF334155)
-                    )
-                  }
-                  Spacer(modifier = Modifier.height(4.dp))
-                  Text(
-                    text = wallet.behaviorSummary,
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B),
-                    lineHeight = 15.sp
-                  )
-
-                  if (wallet.annualInterestPercent > 0) {
-                    val balNum = customStartingBalance.replace(",", "").toDoubleOrNull() ?: 100000.0
-                    val yearlyEarn = balNum * (wallet.annualInterestPercent / 100.0)
-                    val monthlyEarn = yearlyEarn / 12.0
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                      text = "Est. Interest: +$currency ${String.format("%,.0f", monthlyEarn)}/mo (+${String.format("%,.0f", yearlyEarn)}/yr)",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Bold,
-                      color = Color(0xFF029766)
-                    )
-                  }
-                }
-              }
-
-              Spacer(modifier = Modifier.height(12.dp))
-
-              // Starting Balance Input
-              Text(
-                text = "Starting Balance ($currency):",
-                fontSize = 11.sp,
+                text = "${currencyInfo.code} $balanceAmount",
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF475569)
+                color = NumoDarkForestGreen,
+                modifier = Modifier.testTag("starting_balance_amount")
               )
-              Spacer(modifier = Modifier.height(4.dp))
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clip(RoundedCornerShape(12.dp))
-                  .background(Color(0xFFF8FAFC))
-                  .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                  .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Text(
-                  text = "$currency ",
-                  fontSize = 14.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color(0xFF029766)
-                )
-                BasicTextField(
-                  value = customStartingBalance,
-                  onValueChange = { customStartingBalance = it },
-                  singleLine = true,
-                  textStyle = TextStyle(
-                    color = Color(0xFF001A49),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                  ),
-                  cursorBrush = SolidColor(Color(0xFF029766)),
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                  modifier = Modifier
-                    .weight(1f)
-                    .testTag("starting_balance_input")
-                )
-              }
-
-              Spacer(modifier = Modifier.height(14.dp))
-
-              // Add Account Button
-              Button(
-                onClick = {
-                  val newAcc = ConfiguredAccount(
-                    id = wallet.id,
-                    name = wallet.name,
-                    category = wallet.category,
-                    balance = customStartingBalance.ifBlank { wallet.defaultBalance },
-                    annualInterestPercent = wallet.annualInterestPercent,
-                    yieldDescription = wallet.yieldDescription,
-                    brandColorHex = wallet.brandColorHex,
-                    iconType = wallet.iconType
-                  )
-                  // Avoid duplicates
-                  userAccounts.removeAll { it.name.equals(wallet.name, ignoreCase = true) }
-                  userAccounts.add(newAcc)
-                  searchQuery = ""
-                },
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(46.dp)
-                  .testTag("add_account_button"),
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = Color(0xFF029766)
-                ),
-                shape = RoundedCornerShape(14.dp)
-              ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                  )
-                  Spacer(modifier = Modifier.width(6.dp))
-                  Text(
-                    text = "Add to My Accounts",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                  )
-                }
-              }
             }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+              text = currencyInfo.name,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Normal,
+              color = NumoSlateGreen
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            HorizontalDivider(
+              color = Color(0xFFD8EFE8),
+              thickness = 1.dp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+              text = "Transactions: ${1 + connectedAccounts.size}",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Medium,
+              color = NumoDarkForestGreen
+            )
           }
         }
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Configured Accounts Section
-        if (userAccounts.isNotEmpty()) {
+        // 5. Section Header: "CONNECTED ACCOUNTS"
+        Text(
+          text = "CONNECTED ACCOUNTS",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDarkForestGreen,
+          letterSpacing = 0.5.sp,
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("connected_accounts_header")
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 6. Second Frosted Pill Search Bar ("Search connected accounts...")
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .shadow(
+              elevation = 2.dp,
+              shape = RoundedCornerShape(16.dp),
+              spotColor = Color(0x101E5631),
+              ambientColor = Color(0x081E5631)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(NumoGlassCardBg)
+            .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp),
+          contentAlignment = Alignment.CenterStart
+        ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
           ) {
-            Text(
-              text = "YOUR ACTIVE ACCOUNTS (${userAccounts.size})",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Bold,
-              color = Color(0xFF64748B),
-              letterSpacing = 1.sp
+            Icon(
+              imageVector = Icons.Default.Search,
+              contentDescription = "Search accounts",
+              tint = NumoSlateGreen,
+              modifier = Modifier.size(18.dp)
             )
-            Text(
-              text = "Live Ledger Ready",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = Color(0xFF029766)
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+              value = accountSearchQuery,
+              onValueChange = { accountSearchQuery = it },
+              singleLine = true,
+              textStyle = TextStyle(
+                color = NumoDarkForestGreen,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+              ),
+              cursorBrush = SolidColor(NumoDarkForestGreen),
+              modifier = Modifier
+                .weight(1f)
+                .testTag("search_connected_input"),
+              decorationBox = { innerTextField ->
+                if (accountSearchQuery.isEmpty()) {
+                  Text(
+                    text = "Search connected accounts...",
+                    color = NumoSlateGreen.copy(alpha = 0.65f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal
+                  )
+                }
+                innerTextField()
+              }
             )
+            if (accountSearchQuery.isNotEmpty()) {
+              Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Clear",
+                tint = NumoSlateGreen,
+                modifier = Modifier
+                  .size(16.dp)
+                  .clickable { accountSearchQuery = "" }
+              )
+            }
           }
+        }
 
-          Spacer(modifier = Modifier.height(8.dp))
-
-          Column(
-            modifier = Modifier.fillMaxWidth(),
+        // List of any user added accounts
+        if (connectedAccounts.isNotEmpty()) {
+          Spacer(modifier = Modifier.height(10.dp))
+          LazyColumn(
+            modifier = Modifier
+              .fillMaxWidth()
+              .weight(1f, fill = false),
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            userAccounts.forEach { acc ->
-              val brandColor = parseColor(acc.brandColorHex)
-              val icon = resolveIcon(acc.iconType)
-
+            val visibleList = if (accountSearchQuery.isBlank()) {
+              connectedAccounts
+            } else {
+              connectedAccounts.filter {
+                it.name.contains(accountSearchQuery, ignoreCase = true) ||
+                  it.institution.contains(accountSearchQuery, ignoreCase = true)
+              }
+            }
+            items(visibleList, key = { it.id }) { acc ->
               Box(
                 modifier = Modifier
                   .fillMaxWidth()
-                  .shadow(2.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x0A000000))
-                  .clip(RoundedCornerShape(16.dp))
-                  .background(Color.White)
-                  .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
-                  .padding(14.dp)
+                  .clip(RoundedCornerShape(14.dp))
+                  .background(NumoGlassCardBg)
+                  .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(14.dp))
+                  .padding(horizontal = 14.dp, vertical = 10.dp)
               ) {
                 Row(
                   modifier = Modifier.fillMaxWidth(),
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                  Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Box(
-                      modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(brandColor.copy(alpha = 0.15f)),
-                      contentAlignment = Alignment.Center
-                    ) {
-                      Icon(
-                        imageVector = icon,
-                        contentDescription = acc.name,
-                        tint = brandColor,
-                        modifier = Modifier.size(20.dp)
-                      )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                      Text(
-                        text = acc.name,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF001A49)
-                      )
-                      Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                          text = acc.category,
-                          fontSize = 11.sp,
-                          color = Color(0xFF64748B)
-                        )
-                        if (acc.annualInterestPercent > 0) {
-                          Spacer(modifier = Modifier.width(6.dp))
-                          Text(
-                            text = "• ${acc.annualInterestPercent}% p.a.",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF029766)
-                          )
-                        }
-                      }
-                    }
-                  }
-
-                  Row(verticalAlignment = Alignment.CenterVertically) {
+                  Column {
                     Text(
-                      text = "$currency ${acc.balance}",
-                      fontSize = 14.sp,
+                      text = acc.name,
+                      fontSize = 13.sp,
                       fontWeight = FontWeight.Bold,
-                      color = Color(0xFF001A49)
+                      color = NumoDarkForestGreen
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                      imageVector = Icons.Default.Delete,
-                      contentDescription = "Remove",
-                      tint = Color(0xFFEF4444),
-                      modifier = Modifier
-                        .size(18.dp)
-                        .clickable { userAccounts.remove(acc) }
+                    Text(
+                      text = "${currencyInfo.code} ${acc.balance}",
+                      fontSize = 11.sp,
+                      color = NumoSlateGreen
                     )
                   }
+                  Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove",
+                    tint = NumoSlateGreen.copy(alpha = 0.7f),
+                    modifier = Modifier
+                      .size(18.dp)
+                      .clickable { connectedAccounts.remove(acc) }
+                  )
                 }
               }
             }
           }
+        } else {
+          Spacer(modifier = Modifier.weight(1f))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // 7. Bottom Actions: "FINISH SETUP" & "+ Link a New Account"
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Finish & Launch Button
-        Button(
-          onClick = {
-            // If user has not explicitly clicked "Add" yet but has discovered wallet, add it
-            if (userAccounts.isEmpty() && discoveredWallet != null) {
-              val w = discoveredWallet!!
-              userAccounts.add(
-                ConfiguredAccount(
-                  id = w.id,
-                  name = w.name,
-                  category = w.category,
-                  balance = customStartingBalance.ifBlank { w.defaultBalance },
-                  annualInterestPercent = w.annualInterestPercent,
-                  yieldDescription = w.yieldDescription,
-                  brandColorHex = w.brandColorHex,
-                  iconType = w.iconType
-                )
-              )
-            }
-
-            val result = userAccounts.map {
-              Pair(it.name, "$currency ${it.balance}")
-            }
-            onComplete(result)
-          },
+        Box(
           modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp)
+            .height(50.dp)
             .shadow(
-              elevation = 12.dp,
-              shape = RoundedCornerShape(27.dp),
-              ambientColor = Color(0x55027858),
-              spotColor = Color(0x80029766)
+              elevation = 3.dp,
+              shape = RoundedCornerShape(16.dp),
+              spotColor = Color(0x151E5631),
+              ambientColor = Color(0x081E5631)
             )
-            .testTag("accounts_continue_button"),
-          colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF029766)
-          ),
-          shape = RoundedCornerShape(27.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(NumoGlassCardBg)
+            .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(16.dp))
+            .clickable {
+              val list = mutableListOf(
+                Pair("Primary Account (${currencyInfo.code})", "${currencyInfo.code} $balanceAmount")
+              )
+              connectedAccounts.forEach { acc ->
+                list.add(Pair(acc.name, "${currencyInfo.code} ${acc.balance}"))
+              }
+              onComplete(list)
+            }
+            .testTag("finish_setup_button"),
+          contentAlignment = Alignment.Center
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-          ) {
-            Text(
-              text = if (userAccounts.isNotEmpty()) "Finish & Launch (${userAccounts.size} Accounts)" else "Finish & Launch",
-              color = Color.White,
-              fontSize = 15.sp,
-              fontWeight = FontWeight.Bold,
-              letterSpacing = 0.2.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-              text = "→",
-              color = Color.White,
-              fontSize = 18.sp,
-              fontWeight = FontWeight.Bold
-            )
-          }
+          Text(
+            text = "FINISH SETUP",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = NumoDarkForestGreen,
+            letterSpacing = 0.6.sp
+          )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+          text = "+ Link a New Account",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Medium,
+          color = NumoSlateGreen,
+          modifier = Modifier
+            .clickable { showLinkDialog = true }
+            .testTag("link_new_account_button")
+            .padding(vertical = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
       }
     }
+  }
+
+  // Edit Starting Balance Dialog
+  if (isEditingBalance) {
+    AlertDialog(
+      onDismissRequest = { isEditingBalance = false },
+      containerColor = Color.White,
+      title = {
+        Text(
+          text = "Edit Starting Balance",
+          fontSize = 16.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDarkForestGreen
+        )
+      },
+      text = {
+        Column {
+          Text(
+            text = "Enter your starting balance in ${currencyInfo.code}:",
+            fontSize = 13.sp,
+            color = NumoSlateGreen
+          )
+          Spacer(modifier = Modifier.height(10.dp))
+          OutlinedTextField(
+            value = editBalanceInput,
+            onValueChange = { editBalanceInput = it },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = NumoDarkForestGreen,
+              unfocusedBorderColor = NumoGlassCardBorder,
+              focusedTextColor = NumoDarkForestGreen
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+        }
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            if (editBalanceInput.isNotBlank()) {
+              balanceAmount = editBalanceInput.trim()
+            }
+            isEditingBalance = false
+          }
+        ) {
+          Text("Save", color = NumoDarkForestGreen, fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { isEditingBalance = false }) {
+          Text("Cancel", color = NumoSlateGreen)
+        }
+      }
+    )
+  }
+
+  // Link New Account Dialog
+  if (showLinkDialog) {
+    AlertDialog(
+      onDismissRequest = { showLinkDialog = false },
+      containerColor = Color.White,
+      title = {
+        Text(
+          text = "Link a New Account",
+          fontSize = 16.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDarkForestGreen
+        )
+      },
+      text = {
+        Column {
+          Text(
+            text = "Select or type bank / service name:",
+            fontSize = 12.sp,
+            color = NumoSlateGreen
+          )
+          Spacer(modifier = Modifier.height(8.dp))
+          OutlinedTextField(
+            value = newAccountName,
+            onValueChange = { newAccountName = it },
+            placeholder = { Text("e.g. M-PESA, KCB Bank, Chase") },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = NumoDarkForestGreen,
+              unfocusedBorderColor = NumoGlassCardBorder,
+              focusedTextColor = NumoDarkForestGreen
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+
+          Spacer(modifier = Modifier.height(12.dp))
+          Text(
+            text = "Balance (${currencyInfo.code}):",
+            fontSize = 12.sp,
+            color = NumoSlateGreen
+          )
+          Spacer(modifier = Modifier.height(6.dp))
+          OutlinedTextField(
+            value = newAccountBalance,
+            onValueChange = { newAccountBalance = it },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = NumoDarkForestGreen,
+              unfocusedBorderColor = NumoGlassCardBorder,
+              focusedTextColor = NumoDarkForestGreen
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          )
+        }
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            if (newAccountName.isNotBlank()) {
+              connectedAccounts.add(
+                ConnectedAccountItem(
+                  id = System.currentTimeMillis().toString(),
+                  name = newAccountName.trim(),
+                  institution = newAccountName.trim(),
+                  balance = newAccountBalance.ifBlank { "0" }
+                )
+              )
+              newAccountName = ""
+              newAccountBalance = "10,000"
+            }
+            showLinkDialog = false
+          }
+        ) {
+          Text("Connect", color = NumoDarkForestGreen, fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showLinkDialog = false }) {
+          Text("Cancel", color = NumoSlateGreen)
+        }
+      }
+    )
   }
 }

@@ -472,7 +472,7 @@ fun BudgetScreen(
               }
 
               Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = Icons.Default.ArrowForward,
                 contentDescription = "Rebalance",
                 tint = Color(0xFFE11D48),
                 modifier = Modifier.size(16.dp)
@@ -553,11 +553,11 @@ fun BudgetScreen(
   // 1. Edit Monthly Budget Dialog
   if (showEditBudgetDialog) {
     EditBudgetDialog(
-      currentBudget = monthlyBudget,
+      currentBudget = NumoFinancialEngine.monthlyBudgetTarget.toInt(),
       currency = currency,
       onDismiss = { showEditBudgetDialog = false },
       onSave = { newAmount ->
-        monthlyBudget = newAmount
+        NumoFinancialEngine.updateMonthlyBudget(newAmount.toDouble())
         showEditBudgetDialog = false
       }
     )
@@ -569,6 +569,7 @@ fun BudgetScreen(
       currency = currency,
       onDismiss = { showRebalanceDialog = false },
       onConfirm = {
+        NumoFinancialEngine.rebalanceCategory()
         showRebalanceDialog = false
       }
     )
@@ -579,7 +580,15 @@ fun BudgetScreen(
     AddTransactionDialog(
       currency = currency,
       onDismiss = { showAddTransactionDialog = false },
-      onAdd = { _, _, _ ->
+      onAdd = { amount, category, note, isExpense ->
+        NumoFinancialEngine.addTransaction(
+          title = note.ifBlank { category },
+          amount = amount,
+          isIncome = !isExpense,
+          category = category,
+          account = "M-PESA",
+          note = note
+        )
         showAddTransactionDialog = false
       }
     )
@@ -742,8 +751,19 @@ fun TransactionsContent(
 
     Spacer(modifier = Modifier.height(20.dp))
 
-    // TODAY SECTION
-    if (selectedFilter == 0 || selectedFilter == 1 || selectedFilter == 2) {
+    // Filtered live transactions from engine
+    val filteredTransactions = NumoFinancialEngine.transactions.filter {
+      when (selectedFilter) {
+        1 -> it.isIncome
+        2 -> !it.isIncome
+        else -> true
+      }
+    }
+
+    val todayItems = filteredTransactions.filter { it.timestamp.startsWith("Today") }
+    val olderItems = filteredTransactions.filter { !it.timestamp.startsWith("Today") }
+
+    if (todayItems.isNotEmpty()) {
       Text(
         text = "Today",
         fontSize = 14.sp,
@@ -752,84 +772,52 @@ fun TransactionsContent(
         modifier = Modifier.padding(bottom = 10.dp)
       )
 
-      // 1. M-PESA Top Up (+2,000)
-      if (selectedFilter != 2) {
+      todayItems.forEach { tx ->
         TransactionRowItem(
-          title = "M-PESA Top Up",
-          time = "09:24 AM",
-          amount = "+$currency 2,000",
-          isPositive = true,
-          icon = Icons.Default.LocalAtm,
-          iconBg = Color(0xFFE8F8F2),
-          iconTint = Color(0xFF02844E)
+          title = tx.title,
+          time = tx.timestamp.removePrefix("Today, "),
+          amount = (if (tx.isIncome) "+$currency " else "-$currency ") + formatAmount(tx.amount.toInt()),
+          isPositive = tx.isIncome,
+          icon = when (tx.category) {
+            "Transport" -> Icons.Default.DirectionsCar
+            "Bills & Utilities" -> Icons.Default.ElectricBolt
+            "Food & Dining" -> Icons.Default.Fastfood
+            "Income" -> Icons.Default.LocalAtm
+            else -> Icons.Default.LocalAtm
+          },
+          iconBg = if (tx.isIncome) Color(0xFFE8F8F2) else Color(0xFFFEE2E2),
+          iconTint = if (tx.isIncome) Color(0xFF02844E) else Color(0xFFEF4444)
         )
         Spacer(modifier = Modifier.height(10.dp))
-      }
-
-      // 2. Groceries (-1,250)
-      if (selectedFilter != 1) {
-        TransactionRowItem(
-          title = "Groceries",
-          time = "08:45 AM",
-          amount = "-$currency 1,250",
-          isPositive = false,
-          icon = Icons.Default.Fastfood,
-          iconBg = Color(0xFFFEE2E2),
-          iconTint = Color(0xFFEF4444)
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-      }
-
-      // 3. Uber Ride (-320)
-      if (selectedFilter != 1) {
-        TransactionRowItem(
-          title = "Uber Ride",
-          time = "08:12 AM",
-          amount = "-$currency 320",
-          isPositive = false,
-          icon = Icons.Default.DirectionsCar,
-          iconBg = Color(0xFF0F172A),
-          iconTint = Color.White
-        )
-        Spacer(modifier = Modifier.height(20.dp))
       }
     }
 
-    // YESTERDAY SECTION
-    if (selectedFilter == 0 || selectedFilter == 1 || selectedFilter == 2) {
+    if (olderItems.isNotEmpty()) {
       Text(
-        text = "Yesterday",
+        text = "Earlier",
         fontSize = 14.sp,
         fontWeight = FontWeight.Bold,
         color = Color(0xFF64748B),
-        modifier = Modifier.padding(bottom = 10.dp)
+        modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)
       )
 
-      // 1. Salary (+120,000)
-      if (selectedFilter != 2) {
+      olderItems.forEach { tx ->
         TransactionRowItem(
-          title = "Salary",
-          time = "Thu, Apr 24",
-          amount = "+$currency 120,000",
-          isPositive = true,
-          icon = Icons.Default.Work,
-          iconBg = Color(0xFFE8F8F2),
-          iconTint = Color(0xFF02844E)
+          title = tx.title,
+          time = tx.timestamp,
+          amount = (if (tx.isIncome) "+$currency " else "-$currency ") + formatAmount(tx.amount.toInt()),
+          isPositive = tx.isIncome,
+          icon = when (tx.category) {
+            "Transport" -> Icons.Default.DirectionsCar
+            "Bills & Utilities" -> Icons.Default.ElectricBolt
+            "Food & Dining" -> Icons.Default.Fastfood
+            "Income" -> Icons.Default.Work
+            else -> Icons.Default.LocalAtm
+          },
+          iconBg = if (tx.isIncome) Color(0xFFE8F8F2) else Color(0xFFEFF6FF),
+          iconTint = if (tx.isIncome) Color(0xFF02844E) else Color(0xFF2563EB)
         )
         Spacer(modifier = Modifier.height(10.dp))
-      }
-
-      // 2. Electricity Bill (-3,200)
-      if (selectedFilter != 1) {
-        TransactionRowItem(
-          title = "Electricity Bill",
-          time = "Thu, Apr 24",
-          amount = "-$currency 3,200",
-          isPositive = false,
-          icon = Icons.Default.ElectricBolt,
-          iconBg = Color(0xFFEFF6FF),
-          iconTint = Color(0xFF2563EB)
-        )
       }
     }
   }
@@ -920,7 +908,7 @@ fun TransactionRowItem(
 fun AddTransactionDialog(
   currency: String = "KES",
   onDismiss: () -> Unit,
-  onAdd: (Double, String, String) -> Unit
+  onAdd: (Double, String, String, Boolean) -> Unit
 ) {
   var isExpense by remember { mutableStateOf(true) }
   var amountInput by remember { mutableStateOf("0.00") }
@@ -1145,7 +1133,7 @@ fun AddTransactionDialog(
         Button(
           onClick = {
             val amt = amountInput.toDoubleOrNull() ?: 0.0
-            onAdd(amt, selectedCategory, noteInput)
+            onAdd(amt, selectedCategory, noteInput, isExpense)
           },
           modifier = Modifier
             .fillMaxWidth()

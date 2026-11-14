@@ -19,6 +19,7 @@ import com.example.auth.ClerkAuthRepository
 import com.example.ui.AllSetScreen
 import com.example.ui.AuthScreen
 import com.example.ui.DashboardScreen
+import com.example.ui.ForgotPasswordScreen
 import com.example.ui.SignUpScreen
 import com.example.ui.VerifyCodeScreen
 import com.example.ui.WelcomeScreen
@@ -31,6 +32,7 @@ enum class AppScreen {
   WELCOME,
   SIGN_IN,
   SIGN_UP,
+  FORGOT_PASSWORD,
   VERIFY_CODE,
   ONBOARDING_CURRENCY,
   ONBOARDING_ACCOUNTS,
@@ -74,6 +76,7 @@ class MainActivity : ComponentActivity() {
         var pendingSignUpId by remember { mutableStateOf("") }
         var pendingEmail by remember { mutableStateOf("") }
         var pendingFullName by remember { mutableStateOf("") }
+        var resetEmailPreload by remember { mutableStateOf("") }
         var userCurrency by remember { mutableStateOf("KES") }
         var userAccounts by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
@@ -183,8 +186,33 @@ class MainActivity : ComponentActivity() {
               onAppleClick = {
                 launchOAuth("apple", isSignUp = false)
               },
+              onForgotPasswordClick = { typedEmail ->
+                resetEmailPreload = typedEmail
+                currentScreen = AppScreen.FORGOT_PASSWORD
+              },
               onBack = {
                 currentScreen = AppScreen.WELCOME
+              }
+            )
+          }
+
+          AppScreen.FORGOT_PASSWORD -> {
+            BackHandler {
+              currentScreen = AppScreen.SIGN_IN
+            }
+            ForgotPasswordScreen(
+              initialEmail = resetEmailPreload,
+              onBack = {
+                currentScreen = AppScreen.SIGN_IN
+              },
+              onNavigateToSignUp = {
+                currentScreen = AppScreen.SIGN_UP
+              },
+              onResetSuccess = { email ->
+                authProvider = "Email"
+                authenticatedUser = email
+                Toast.makeText(context, "Password updated successfully!", Toast.LENGTH_SHORT).show()
+                currentScreen = AppScreen.DASHBOARD
               }
             )
           }
@@ -267,13 +295,14 @@ class MainActivity : ComponentActivity() {
 
           AppScreen.ALL_SET -> {
             BackHandler {
-              // Pressing back from All set exits to Welcome
-              authenticatedUser = null
-              currentScreen = AppScreen.WELCOME
+              currentScreen = AppScreen.ONBOARDING_ACCOUNTS
             }
             AllSetScreen(
-              onAnimationComplete = {
+              onGoToHome = {
                 currentScreen = AppScreen.DASHBOARD
+              },
+              onAddMoreAccounts = {
+                currentScreen = AppScreen.ONBOARDING_ACCOUNTS
               }
             )
           }

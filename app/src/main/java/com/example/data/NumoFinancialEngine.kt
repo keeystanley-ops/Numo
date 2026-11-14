@@ -330,12 +330,13 @@ object NumoFinancialEngine {
   /**
    * Pays a bill, marking it paid and recording an expense transaction
    */
-  fun payBill(billId: String) {
-    val billIndex = bills.indexOfFirst { it.id == billId }
+  fun payBill(billIdOrTitle: String) {
+    val billIndex = bills.indexOfFirst { it.id == billIdOrTitle || it.title.equals(billIdOrTitle, ignoreCase = true) }
     if (billIndex != -1) {
       val bill = bills[billIndex]
       if (!bill.isPaid) {
-        bill.isPaid = true
+        val updated = bill.copy(isPaid = true)
+        bills[billIndex] = updated
         addTransaction(
           title = bill.title,
           amount = bill.amount,

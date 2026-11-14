@@ -38,6 +38,19 @@ data class SessionValidationResult(
   val errorMessage: String? = null
 )
 
+data class PasswordResetResult(
+  val success: Boolean,
+  val signInId: String? = null,
+  val emailAddressId: String? = null,
+  val isAccountFound: Boolean = true,
+  val message: String
+)
+
+data class PasswordResetCompleteResult(
+  val success: Boolean,
+  val errorMessage: String? = null
+)
+
 object ClerkAuthRepository {
   private const val TAG = "ClerkAuth"
   private const val PUBLISHABLE_KEY = "pk_test_a25vd2luZy1zbmlwZS03MzY0LmNsZXJrLmFjY291bnRzLmRldiQ"
@@ -637,6 +650,217 @@ object ClerkAuthRepository {
         success = false,
         errorMessage = e.message ?: "Failed to sign in."
       )
+    }
+  }
+
+  /**
+   * Initiates a password reset for the specified email with Clerk Frontend API.
+   * If the account exists, Clerk sends a reset link or code to that email.
+   * If the account does not exist, returns account not found.
+   */
+  /**
+   * Initiates a password reset for the specified email with Clerk Frontend API.
+   * If the account exists, Clerk sends a reset link or code to that email.
+   * If the account does not exist, returns account not found.
+   */
+  suspend fun requestPasswordReset(email: String): PasswordResetResult = withContext(Dispatchers.IO) {
+    val cleanEmail = email.trim()
+    if (cleanEmail.isEmpty() || !cleanEmail.contains("@")) {
+      return@withContext PasswordResetResult(
+        success = false,
+        isAccountFound = false,
+        message = "Please enter a valid email address."
+      )
+    }
+
+    try {
+      // 1. Initiate sign-in with identifier to check account existence and retrieve first factor strategies
+      val formBody = FormBody.Builder()
+        .add("identifier", cleanEmail)
+        .build()
+
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ins?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .post(formBody)
+        .build()
+
+      client.newCall(request).execute().use { response ->
+        updateClientToken(response)
+        val bodyStr = response.body?.string() ?: ""
+        val json = if (bodyStr.isNotEmpty()) JSONObject(bodyStr) else JSONObject()
+
+        if (!response.isSuccessful) {
+          val errorMsg = extractErrorMessage(json)
+          val isNotFound = errorMsg.contains("Couldn't find", ignoreCase = true) ||
+            errorMsg.contains("not found", ignoreCase = true) ||
+            errorMsg.contains("does not exist", ignoreCase = true) ||
+            errorMsg.contains("no user", ignoreCase = true)
+
+          return@withContext PasswordResetResult(
+            success = false,
+            isAccountFound = !isNotFound,
+            message = if (isNotFound) {
+              "No account is registered with this email. Please verify your address or sign up."
+            } else {
+              errorMsg
+            }
+          )
+        }
+
+        val responseObj = json.optJSONObject("response") ?: json
+        val signInId = responseObj.optString("id")
+        val supportedFactors = responseObj.optJSONArray("supported_first_factors")
+
+        // 2. Locate the email_address_id corresponding to reset_password_email_code
+        var targetEmailAddressId: String? = null
+        if (supportedFactors != null) {
+          for (i in 0 until supportedFactors.length()) {
+            val factor = supportedFactors.optJSONObject(i) ?: continue
+            val strategy = factor.optString("strategy")
+            if (strategy == "reset_password_email_code" || strategy == "email_code") {
+              val id = factor.optString("email_address_id")
+              if (id.isNotEmpty()) {
+                targetEmailAddressId = id
+                if (strategy == "reset_password_email_code") break
+              }
+            }
+          }
+        }
+
+        if (signInId.isNotEmpty()) {
+          // 3. Prepare first factor with strategy and email_address_id
+          val resetBodyBuilder = FormBody.Builder()
+            .add("strategy", "reset_password_email_code")
+
+          if (!targetEmailAddressId.isNullOrEmpty()) {
+            resetBodyBuilder.add("email_address_id", targetEmailAddressId)
+          }
+
+          val resetReq = Request.Builder()
+            .url("$FAPI_BASE/sign_ins/$signInId/prepare_first_factor?_is_native=1")
+            .addHeader("Authorization", getAuthHeader())
+            .post(resetBodyBuilder.build())
+            .build()
+
+          client.newCall(resetReq).execute().use { resetResp ->
+            updateClientToken(resetResp)
+            val resetStr = resetResp.body?.string() ?: ""
+            val resetJson = if (resetStr.isNotEmpty()) JSONObject(resetStr) else JSONObject()
+
+            if (resetResp.isSuccessful) {
+              Log.d(TAG, "Clerk password reset email successfully dispatched to $cleanEmail")
+              return@withContext PasswordResetResult(
+                success = true,
+                signInId = signInId,
+                emailAddressId = targetEmailAddressId,
+                isAccountFound = true,
+                message = "Password reset email sent to $cleanEmail. Check your inbox for your 6-digit reset code."
+              )
+            } else {
+              val resetErr = extractErrorMessage(resetJson)
+              Log.w(TAG, "prepare_first_factor error: $resetErr")
+              return@withContext PasswordResetResult(
+                success = false,
+                signInId = signInId,
+                emailAddressId = targetEmailAddressId,
+                isAccountFound = true,
+                message = resetErr
+              )
+            }
+          }
+        }
+
+        return@withContext PasswordResetResult(
+          success = false,
+          isAccountFound = false,
+          message = "Could not initialize password reset. Please try again."
+        )
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error requesting password reset", e)
+      return@withContext PasswordResetResult(
+        success = false,
+        isAccountFound = true,
+        message = e.message ?: "Unable to connect to authentication server. Please try again."
+      )
+    }
+  }
+
+  /**
+   * Completes the password reset by providing the 6-digit code received via email
+   * and the new password desired by the user.
+   */
+  suspend fun completePasswordReset(
+    signInId: String,
+    code: String,
+    newPassword: String
+  ): PasswordResetCompleteResult = withContext(Dispatchers.IO) {
+    try {
+      val formBody = FormBody.Builder()
+        .add("strategy", "reset_password_email_code")
+        .add("code", code.trim())
+        .add("password", newPassword)
+        .build()
+
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ins/$signInId/attempt_first_factor?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .post(formBody)
+        .build()
+
+      client.newCall(request).execute().use { response ->
+        updateClientToken(response)
+        val bodyStr = response.body?.string() ?: ""
+        val json = if (bodyStr.isNotEmpty()) JSONObject(bodyStr) else JSONObject()
+
+        if (!response.isSuccessful) {
+          val errorMsg = extractErrorMessage(json)
+          return@withContext PasswordResetCompleteResult(
+            success = false,
+            errorMessage = errorMsg
+          )
+        }
+
+        return@withContext PasswordResetCompleteResult(success = true)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error completing password reset", e)
+      return@withContext PasswordResetCompleteResult(
+        success = false,
+        errorMessage = e.message ?: "Failed to reset password. Please verify the code and try again."
+      )
+    }
+  }
+
+  /**
+   * Resends the 6-digit password reset code to the user's email.
+   */
+  suspend fun resendPasswordResetCode(
+    signInId: String,
+    emailAddressId: String?
+  ): Boolean = withContext(Dispatchers.IO) {
+    try {
+      val resetBodyBuilder = FormBody.Builder()
+        .add("strategy", "reset_password_email_code")
+
+      if (!emailAddressId.isNullOrEmpty()) {
+        resetBodyBuilder.add("email_address_id", emailAddressId)
+      }
+
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ins/$signInId/prepare_first_factor?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .post(resetBodyBuilder.build())
+        .build()
+
+      client.newCall(request).execute().use { resp ->
+        updateClientToken(resp)
+        resp.isSuccessful
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error resending reset code", e)
+      false
     }
   }
 

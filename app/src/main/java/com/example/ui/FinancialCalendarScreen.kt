@@ -60,6 +60,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.NumoFinancialEngine
 import com.example.ui.animation.animateIntCount
 import com.example.ui.animation.bouncyClickable
 import com.example.ui.animation.formatAmount
@@ -269,6 +270,7 @@ fun FinancialCalendarMain(
       Spacer(modifier = Modifier.height(14.dp))
 
       // 1. Rent Payment: KES 35,000, In 2 days
+      val isRentPaid = NumoFinancialEngine.bills.find { it.title.equals("Rent Payment", true) }?.isPaid == true || paidBills.contains("Rent Payment")
       CalendarBillItem(
         title = "Rent Payment",
         amount = "$currency 35,000",
@@ -276,8 +278,9 @@ fun FinancialCalendarMain(
         icon = Icons.Default.Home,
         iconBg = Color(0xFFEFF6FF),
         iconTint = Color(0xFF2563EB),
-        isPaid = paidBills.contains("Rent Payment"),
+        isPaid = isRentPaid,
         onMarkAsPaid = {
+          NumoFinancialEngine.payBill("Rent Payment")
           paidBills = paidBills + "Rent Payment"
         },
         onClick = { onOpenBill("Rent Payment") },
@@ -287,6 +290,7 @@ fun FinancialCalendarMain(
       Spacer(modifier = Modifier.height(12.dp))
 
       // 2. KPLC Electricity: KES 2,500, In 4 days (Screen 10 target)
+      val isKplcPaid = NumoFinancialEngine.bills.find { it.title.equals("KPLC Electricity", true) }?.isPaid == true || paidBills.contains("KPLC Electricity")
       CalendarBillItem(
         title = "KPLC Electricity",
         amount = "$currency 2,500",
@@ -294,8 +298,9 @@ fun FinancialCalendarMain(
         icon = Icons.Default.ElectricBolt,
         iconBg = Color(0xFFEFF6FF),
         iconTint = Color(0xFF02844E),
-        isPaid = paidBills.contains("KPLC Electricity"),
+        isPaid = isKplcPaid,
         onMarkAsPaid = {
+          NumoFinancialEngine.payBill("KPLC Electricity")
           paidBills = paidBills + "KPLC Electricity"
         },
         onClick = { onOpenBill("KPLC Electricity") },
@@ -305,6 +310,7 @@ fun FinancialCalendarMain(
       Spacer(modifier = Modifier.height(12.dp))
 
       // 3. Internet: KES 1,999, In 5 days
+      val isInternetPaid = NumoFinancialEngine.bills.find { it.title.equals("Internet", true) }?.isPaid == true || paidBills.contains("Internet")
       CalendarBillItem(
         title = "Internet",
         amount = "$currency 1,999",
@@ -312,8 +318,9 @@ fun FinancialCalendarMain(
         icon = Icons.Default.Wifi,
         iconBg = Color(0xFFEFF6FF),
         iconTint = Color(0xFF0284C7),
-        isPaid = paidBills.contains("Internet"),
+        isPaid = isInternetPaid,
         onMarkAsPaid = {
+          NumoFinancialEngine.payBill("Internet")
           paidBills = paidBills + "Internet"
         },
         onClick = { onOpenBill("Internet") },
@@ -512,6 +519,10 @@ fun BillPaymentDetailScreen(
           )
         }
 
+        val matchedBill = NumoFinancialEngine.bills.find { it.title.equals(billName, ignoreCase = true) }
+        val billAmount = (matchedBill?.amount ?: 2500.0).toInt()
+        val isAlreadyPaid = (matchedBill?.isPaid == true)
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
@@ -524,7 +535,7 @@ fun BillPaymentDetailScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-          text = "$currency 2,500",
+          text = "$currency ${formatAmount(billAmount)}",
           fontSize = 28.sp,
           fontWeight = FontWeight.Bold,
           color = Color(0xFF0F172A)
@@ -533,28 +544,35 @@ fun BillPaymentDetailScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-          text = if (isPaidSuccess) "Payment Completed" else "Due in 4 days",
+          text = if (isPaidSuccess || isAlreadyPaid) "Payment Completed" else (matchedBill?.dueDateText ?: "Due in 4 days"),
           fontSize = 14.sp,
           fontWeight = FontWeight.Medium,
-          color = if (isPaidSuccess) Color(0xFF02844E) else Color(0xFF64748B)
+          color = if (isPaidSuccess || isAlreadyPaid) Color(0xFF02844E) else Color(0xFF64748B)
         )
       }
 
       Spacer(modifier = Modifier.height(32.dp))
 
+      val billPaidState = isPaidSuccess || (NumoFinancialEngine.bills.find { it.title.equals(billName, true) }?.isPaid == true)
+
       // Big "Pay Bill" button
       Button(
-        onClick = { isPaidSuccess = true },
+        onClick = {
+          if (!billPaidState) {
+            NumoFinancialEngine.payBill(billName)
+            isPaidSuccess = true
+          }
+        },
         modifier = Modifier
           .fillMaxWidth()
           .height(52.dp)
           .testTag("btn_pay_bill_submit"),
         colors = ButtonDefaults.buttonColors(
-          containerColor = if (isPaidSuccess) Color(0xFF059669) else Color(0xFF02844E)
+          containerColor = if (billPaidState) Color(0xFF059669) else Color(0xFF02844E)
         ),
         shape = RoundedCornerShape(16.dp)
       ) {
-        if (isPaidSuccess) {
+        if (billPaidState) {
           Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
           Spacer(modifier = Modifier.width(8.dp))
           Text("Bill Paid Successfully!", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -575,6 +593,7 @@ fun BillPaymentDetailScreen(
 
       Spacer(modifier = Modifier.height(14.dp))
 
+      val matchedBillForDetails = NumoFinancialEngine.bills.find { it.title.equals(billName, ignoreCase = true) }
       Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
@@ -592,7 +611,7 @@ fun BillPaymentDetailScreen(
               color = Color(0xFF64748B)
             )
             Text(
-              text = "12345678",
+              text = matchedBillForDetails?.accountNumber ?: "12345678",
               fontSize = 14.sp,
               fontWeight = FontWeight.Bold,
               color = Color(0xFF0F172A)
