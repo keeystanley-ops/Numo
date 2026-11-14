@@ -1,288 +1,186 @@
 package com.example.ui
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.R
-import com.example.ui.theme.NumoDarkForestGreen
-import com.example.ui.theme.NumoGlassCardBg
-import com.example.ui.theme.NumoGlassCardBorder
-import com.example.ui.theme.NumoMintBackground
-import com.example.ui.theme.NumoSlateGreen
+import com.example.ui.components.NumoBottomNavBar
+import com.example.ui.components.NumoNavTab
 
-/**
- * Clean "Welcome to Numo" Screen:
- * The post-onboarding landing destination requested by the user.
- * Stripped of all extra dashboard tabs, budgets, and analytics so building
- * can proceed fresh.
- */
+private enum class NumoDashboardPage {
+  HOME,
+  ANALYTICS,
+  BUDGET_CONTROL,
+  TRANSACTIONS,
+  FINANCIAL_GOALS,
+  UPCOMING_BILLS,
+  SAVINGS_GOALS,
+  DEBT_MANAGEMENT,
+  SPENDING_INSIGHTS,
+  ADD_TRANSACTION,
+  PROFILE,
+  SETTINGS
+}
+
 @Composable
 fun DashboardScreen(
-  userEmail: String = "Ayesha Khan",
+  userEmail: String = "Ayesha Wanjiru",
   provider: String = "Google",
   userCurrency: String = "KES",
   customAccounts: List<Pair<String, String>> = emptyList(),
   onSignOut: () -> Unit = {}
 ) {
+  var currentPage by remember { mutableStateOf(NumoDashboardPage.HOME) }
+
   val displayName = remember(userEmail) {
     if (userEmail.contains("@")) {
       val namePart = userEmail.substringBefore("@")
       if (namePart.equals("user", ignoreCase = true) || namePart.isBlank()) {
-        "Ayesha Khan"
+        "Ayesha Wanjiru"
       } else {
         namePart.replaceFirstChar { it.uppercase() }
       }
     } else if (userEmail.isNotBlank()) {
       userEmail
     } else {
-      "Ayesha Khan"
+      "Ayesha Wanjiru"
     }
   }
 
-  Surface(
-    modifier = Modifier.fillMaxSize(),
-    color = NumoMintBackground
-  ) {
+  val emailDisplay = remember(userEmail) {
+    if (userEmail.contains("@")) userEmail else "ayesha@numo.com"
+  }
+
+  val selectedNavTab = when (currentPage) {
+    NumoDashboardPage.HOME,
+    NumoDashboardPage.UPCOMING_BILLS -> NumoNavTab.HOME
+    NumoDashboardPage.ANALYTICS,
+    NumoDashboardPage.SPENDING_INSIGHTS -> NumoNavTab.ANALYTICS
+    NumoDashboardPage.BUDGET_CONTROL,
+    NumoDashboardPage.TRANSACTIONS,
+    NumoDashboardPage.ADD_TRANSACTION -> NumoNavTab.BUDGET
+    NumoDashboardPage.FINANCIAL_GOALS,
+    NumoDashboardPage.SAVINGS_GOALS,
+    NumoDashboardPage.DEBT_MANAGEMENT -> NumoNavTab.GOALS
+    NumoDashboardPage.PROFILE,
+    NumoDashboardPage.SETTINGS -> NumoNavTab.PROFILE
+  }
+
+  BackHandler(enabled = currentPage != NumoDashboardPage.HOME) {
+    currentPage = when (currentPage) {
+      NumoDashboardPage.UPCOMING_BILLS,
+      NumoDashboardPage.ADD_TRANSACTION -> NumoDashboardPage.HOME
+      NumoDashboardPage.SPENDING_INSIGHTS -> NumoDashboardPage.ANALYTICS
+      NumoDashboardPage.TRANSACTIONS -> NumoDashboardPage.BUDGET_CONTROL
+      NumoDashboardPage.SAVINGS_GOALS,
+      NumoDashboardPage.DEBT_MANAGEMENT -> NumoDashboardPage.FINANCIAL_GOALS
+      NumoDashboardPage.SETTINGS -> NumoDashboardPage.PROFILE
+      else -> NumoDashboardPage.HOME
+    }
+  }
+
+  Column(modifier = Modifier.fillMaxSize()) {
     Box(
       modifier = Modifier
-        .fillMaxSize()
-        .statusBarsPadding()
-        .navigationBarsPadding()
+        .weight(1f)
+        .fillMaxWidth()
     ) {
-      Column(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-      ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Top Header: App Branding + Sign Out
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-              painter = painterResource(id = R.drawable.ic_numo_leaf_transparent),
-              contentDescription = "Numo Leaf",
-              modifier = Modifier.size(28.dp),
-              contentScale = ContentScale.Fit
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-              text = "Numo",
-              fontSize = 18.sp,
-              fontWeight = FontWeight.Bold,
-              color = NumoDarkForestGreen
-            )
-          }
-
-          // Sign Out Pill
-          Row(
-            modifier = Modifier
-              .clip(RoundedCornerShape(20.dp))
-              .background(Color.White.copy(alpha = 0.85f))
-              .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(20.dp))
-              .clickable { onSignOut() }
-              .padding(horizontal = 12.dp, vertical = 6.dp)
-              .testTag("dashboard_sign_out_button"),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.Logout,
-              contentDescription = "Sign Out",
-              tint = NumoSlateGreen,
-              modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-              text = "Sign Out",
-              fontSize = 12.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = NumoDarkForestGreen
-            )
-          }
-        }
-
-        Spacer(modifier = Modifier.weight(0.4f))
-
-        // Centered Glass Terrarium / Numo Brand Art
-        Box(
-          modifier = Modifier
-            .size(140.dp)
-            .shadow(
-              elevation = 16.dp,
-              shape = CircleShape,
-              spotColor = Color(0x331E5631),
-              ambientColor = Color(0x1A1E5631)
-            )
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.7f))
-            .border(2.dp, Color.White, CircleShape),
-          contentAlignment = Alignment.Center
-        ) {
-          Image(
-            painter = painterResource(id = R.drawable.numo_glass_plant_hero),
-            contentDescription = "Numo Plant",
-            modifier = Modifier
-              .size(118.dp)
-              .testTag("dashboard_welcome_art"),
-            contentScale = ContentScale.Fit
-          )
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Welcome Headline
-        Text(
-          text = "Welcome to Numo",
-          fontSize = 30.sp,
-          fontWeight = FontWeight.Bold,
-          fontFamily = FontFamily.SansSerif,
-          color = NumoDarkForestGreen,
-          textAlign = TextAlign.Center,
-          modifier = Modifier.testTag("welcome_to_numo_headline")
+      when (currentPage) {
+        NumoDashboardPage.HOME -> HomeScreen(
+          userName = displayName,
+          currency = userCurrency,
+          onAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
+          onPayBill = { currentPage = NumoDashboardPage.UPCOMING_BILLS },
+          onOpenTransactions = { currentPage = NumoDashboardPage.TRANSACTIONS },
+          onOpenBudget = { currentPage = NumoDashboardPage.BUDGET_CONTROL },
+          onOpenProfile = { currentPage = NumoDashboardPage.PROFILE },
+          onOpenInsights = { currentPage = NumoDashboardPage.SPENDING_INSIGHTS }
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-          text = "Hello, $displayName! Your green finance journey begins here.",
-          fontSize = 14.sp,
-          color = NumoSlateGreen,
-          textAlign = TextAlign.Center,
-          lineHeight = 20.sp,
-          modifier = Modifier.padding(horizontal = 16.dp)
+        NumoDashboardPage.ANALYTICS -> AnalyticsScreen(
+          currency = userCurrency,
+          onOpenInsights = { currentPage = NumoDashboardPage.SPENDING_INSIGHTS },
+          onOpenSettings = { currentPage = NumoDashboardPage.SETTINGS },
+          onBack = { currentPage = NumoDashboardPage.HOME }
         )
 
-        Spacer(modifier = Modifier.height(30.dp))
+        NumoDashboardPage.BUDGET_CONTROL -> BudgetScreen(
+          currency = userCurrency,
+          onOpenTransactions = { currentPage = NumoDashboardPage.TRANSACTIONS },
+          onOpenAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
+          onBack = { currentPage = NumoDashboardPage.HOME }
+        )
 
-        // Frosted Setup Confirmation Card
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-              elevation = 6.dp,
-              shape = RoundedCornerShape(22.dp),
-              spotColor = Color(0x181E5631),
-              ambientColor = Color(0x0C1E5631)
-            )
-            .clip(RoundedCornerShape(22.dp))
-            .background(NumoGlassCardBg)
-            .border(1.dp, NumoGlassCardBorder, RoundedCornerShape(22.dp))
-            .padding(20.dp)
-            .testTag("dashboard_setup_card")
-        ) {
-          Column {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Text(
-                text = "ACCOUNT STATUS",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = NumoSlateGreen,
-                letterSpacing = 0.8.sp
-              )
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                  imageVector = Icons.Default.CheckCircle,
-                  contentDescription = "Active",
-                  tint = Color(0xFF10B981),
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                  text = "Active & Ready",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color(0xFF10B981)
-                )
-              }
-            }
+        NumoDashboardPage.TRANSACTIONS -> TransactionsScreen(
+          currency = userCurrency,
+          onAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
+          onBack = { currentPage = NumoDashboardPage.BUDGET_CONTROL }
+        )
 
-            Spacer(modifier = Modifier.height(14.dp))
+        NumoDashboardPage.FINANCIAL_GOALS -> GoalsScreen(
+          currency = userCurrency,
+          onOpenSavingsGoalDetail = { currentPage = NumoDashboardPage.SAVINGS_GOALS },
+          onOpenDebtManagement = { currentPage = NumoDashboardPage.DEBT_MANAGEMENT },
+          onBack = { currentPage = NumoDashboardPage.HOME }
+        )
 
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-              Column {
-                Text(
-                  text = "Currency",
-                  fontSize = 12.sp,
-                  color = NumoSlateGreen
-                )
-                Text(
-                  text = userCurrency,
-                  fontSize = 16.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = NumoDarkForestGreen
-                )
-              }
+        NumoDashboardPage.UPCOMING_BILLS -> UpcomingBillsScreen(
+          currency = userCurrency,
+          onBack = { currentPage = NumoDashboardPage.HOME }
+        )
 
-              Column(horizontalAlignment = Alignment.End) {
-                Text(
-                  text = "Connected Accounts",
-                  fontSize = 12.sp,
-                  color = NumoSlateGreen
-                )
-                Text(
-                  text = if (customAccounts.isNotEmpty()) "${customAccounts.size} Linked" else "Primary Account",
-                  fontSize = 16.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = NumoDarkForestGreen
-                )
-              }
-            }
-          }
-        }
+        NumoDashboardPage.SAVINGS_GOALS -> SavingsGoalsScreen(
+          currency = userCurrency,
+          onBack = { currentPage = NumoDashboardPage.FINANCIAL_GOALS }
+        )
 
-        Spacer(modifier = Modifier.weight(0.6f))
+        NumoDashboardPage.DEBT_MANAGEMENT -> DebtManagementScreen(
+          currency = userCurrency,
+          onBack = { currentPage = NumoDashboardPage.FINANCIAL_GOALS }
+        )
+
+        NumoDashboardPage.SPENDING_INSIGHTS -> SpendingInsightsScreen(
+          currency = userCurrency,
+          onBack = { currentPage = NumoDashboardPage.ANALYTICS }
+        )
+
+        NumoDashboardPage.ADD_TRANSACTION -> AddTransactionScreen(
+          currency = userCurrency,
+          onCancel = { currentPage = NumoDashboardPage.HOME },
+          onSave = { currentPage = NumoDashboardPage.TRANSACTIONS }
+        )
+
+        NumoDashboardPage.PROFILE -> ProfileScreen(
+          userName = displayName,
+          userEmail = emailDisplay,
+          onOpenSettings = { currentPage = NumoDashboardPage.SETTINGS },
+          onSignOut = onSignOut
+        )
+
+        NumoDashboardPage.SETTINGS -> SettingsScreen(
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
       }
     }
+
+    NumoBottomNavBar(
+      selectedTab = selectedNavTab,
+      onSelectTab = { tab ->
+        currentPage = when (tab) {
+          NumoNavTab.HOME -> NumoDashboardPage.HOME
+          NumoNavTab.ANALYTICS -> NumoDashboardPage.ANALYTICS
+          NumoNavTab.BUDGET -> NumoDashboardPage.BUDGET_CONTROL
+          NumoNavTab.GOALS -> NumoDashboardPage.FINANCIAL_GOALS
+          NumoNavTab.PROFILE -> NumoDashboardPage.PROFILE
+        }
+      }
+    )
   }
 }
