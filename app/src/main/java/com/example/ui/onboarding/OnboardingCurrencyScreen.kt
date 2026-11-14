@@ -47,11 +47,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.NumoFinancialEngine
 import com.example.ui.components.Numo3DCurrencyCoinsIllustration
 import com.example.ui.components.NumoBackCircleButton
+import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
+import com.example.ui.components.NumoPrimaryButton
 import com.example.ui.components.NumoRadioIndicator
-import com.example.ui.theme.NumoDS
-import com.example.ui.theme.NumoPrimaryButton
-import com.example.ui.theme.NumoScreenBackground
+import com.example.ui.components.NumoScreenBackground
 
 private data class OnboardingCurrencyItem(
   val code: String,
@@ -168,7 +168,10 @@ fun OnboardingCurrencyScreen(
           NumoFinancialEngine.currency = selectedCode
           onContinue(selectedCode)
         },
-        modifier = Modifier.testTag("btn_currency_continue")
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("btn_currency_continue"),
+        height = 54.dp
       )
 
       Spacer(modifier = Modifier.height(20.dp))

@@ -35,11 +35,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.NumoFinancialEngine
+import com.example.ui.components.NumoBackCircleButton
+import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
+import com.example.ui.components.NumoPrimaryButton
+import com.example.ui.components.NumoScreenBackground
 import com.example.ui.components.NumoSuccessCheckmarkEmblem
-import com.example.ui.theme.NumoDS
-import com.example.ui.theme.NumoPrimaryButton
-import com.example.ui.theme.NumoScreenBackground
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,6 +54,7 @@ import java.util.Locale
 fun AccountConnectedScreen(
   connectedAccounts: List<Pair<String, String>>,
   currency: String = NumoFinancialEngine.currency,
+  onBack: () -> Unit = {},
   onContinue: () -> Unit
 ) {
   val primaryAccount = connectedAccounts.firstOrNull()
@@ -79,7 +81,19 @@ fun AccountConnectedScreen(
         .padding(horizontal = 24.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      Spacer(modifier = Modifier.weight(0.65f))
+      Spacer(modifier = Modifier.height(10.dp))
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        NumoBackCircleButton(
+          onClick = onBack,
+          modifier = Modifier.testTag("btn_account_connected_back")
+        )
+      }
+
+      Spacer(modifier = Modifier.weight(0.55f))
 
       // Raised circular surface with green checkmark
       NumoSuccessCheckmarkEmblem(
@@ -222,7 +236,10 @@ fun AccountConnectedScreen(
       NumoPrimaryButton(
         text = "Continue",
         onClick = onContinue,
-        modifier = Modifier.testTag("btn_account_connected_continue")
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("btn_account_connected_continue"),
+        height = 54.dp
       )
 
       Spacer(modifier = Modifier.height(28.dp))

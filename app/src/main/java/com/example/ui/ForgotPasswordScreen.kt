@@ -5,12 +5,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,10 +61,10 @@ import androidx.compose.ui.unit.sp
 import com.example.auth.ClerkAuthRepository
 import com.example.ui.components.Numo3DEnvelopeLockIllustration
 import com.example.ui.components.NumoBackCircleButton
+import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
-import com.example.ui.theme.NumoDS
-import com.example.ui.theme.NumoPrimaryButton
-import com.example.ui.theme.NumoScreenBackground
+import com.example.ui.components.NumoPrimaryButton
+import com.example.ui.components.NumoScreenBackground
 import kotlinx.coroutines.launch
 
 /**
@@ -99,41 +102,48 @@ fun ForgotPasswordScreen(
   NumoScreenBackground(modifier = Modifier.testTag("forgot_password_screen")) {
     NumoFloatingDecorations(variant = 1)
 
-    Column(
+    BoxWithConstraints(
       modifier = Modifier
         .fillMaxSize()
         .statusBarsPadding()
         .navigationBarsPadding()
-        .verticalScroll(rememberScrollState())
-        .padding(horizontal = 24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally
+        .imePadding()
     ) {
-      Spacer(modifier = Modifier.height(10.dp))
-
-      // Top bar with circular back button
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+      val minScreenHeight = maxHeight
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .heightIn(min = minScreenHeight)
+          .verticalScroll(rememberScrollState())
+          .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
       ) {
-        NumoBackCircleButton(
-          onClick = {
-            if (step == 2) {
-              step = 1
-              statusMessage = null
-            } else {
-              onBack()
-            }
-          },
-          modifier = Modifier.testTag("btn_forgot_password_back")
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Top bar with circular back button
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          NumoBackCircleButton(
+            onClick = {
+              if (step == 2) {
+                step = 1
+                statusMessage = null
+              } else {
+                onBack()
+              }
+            },
+            modifier = Modifier.testTag("btn_forgot_password_back")
+          )
+        }
+
+        Spacer(modifier = Modifier.weight(0.32f))
+
+        // 3D Envelope + Security Lock illustration
+        Numo3DEnvelopeLockIllustration(
+          modifier = Modifier.size(172.dp)
         )
-      }
-
-      Spacer(modifier = Modifier.height(12.dp))
-
-      // 3D Envelope + Security Lock illustration
-      Numo3DEnvelopeLockIllustration(
-        modifier = Modifier.size(168.dp)
-      )
 
       Spacer(modifier = Modifier.height(10.dp))
 
@@ -276,7 +286,10 @@ fun ForgotPasswordScreen(
                 }
               }
             },
-            modifier = Modifier.testTag("btn_send_reset_link")
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("btn_send_reset_link"),
+            height = 54.dp
           )
         }
       } else {
@@ -373,7 +386,10 @@ fun ForgotPasswordScreen(
                 }
               }
             },
-            modifier = Modifier.testTag("btn_save_new_password")
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("btn_save_new_password"),
+            height = 54.dp
           )
         }
       }
@@ -388,11 +404,13 @@ fun ForgotPasswordScreen(
         color = NumoDS.Turquoise,
         modifier = Modifier
           .clickable { onBack() }
-          .padding(vertical = 6.dp, horizontal = 12.dp)
+          .padding(vertical = 8.dp, horizontal = 14.dp)
           .testTag("btn_back_to_sign_in")
       )
 
+      Spacer(modifier = Modifier.weight(0.68f))
       Spacer(modifier = Modifier.height(24.dp))
+    }
     }
   }
 }

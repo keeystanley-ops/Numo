@@ -7,7 +7,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -47,15 +48,15 @@ import com.example.ui.components.Numo3DLogoEmblem
 import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
 import com.example.ui.components.NumoScreenBackground
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * SCREEN 1: Numo Animated Splash Screen
  *
  * Progressively reveals the exact Numo 3D "N" emblem without modifying its
- * geometry, proportions, gradients, or 3D shading, then reveals the brand name
- * and tagline before smoothly transitioning to the Welcome / Sign In screen.
+ * geometry, proportions, gradients, or 3D shading, then keeps the completed
+ * logo, brand name, and tagline visible until the user swipes LEFT (or taps
+ * the indicator pill) to advance to the Welcome screen.
  */
 @Composable
 fun WelcomeScreen(
@@ -65,6 +66,7 @@ fun WelcomeScreen(
 ) {
   val context = LocalContext.current
   val density = LocalDensity.current
+  val swipeThresholdPx = remember(density) { with(density) { 64.dp.toPx() } }
 
   val isReducedMotion = remember(context) {
     try {
@@ -78,10 +80,11 @@ fun WelcomeScreen(
     }
   }
 
-  // Prevent duplicate navigation from tap + auto-advance
+  var isFormationComplete by remember { mutableStateOf(skipAnimation) }
   var hasNavigated by remember { mutableStateOf(false) }
+
   fun navigateToWelcomeOnce() {
-    if (!hasNavigated) {
+    if (isFormationComplete && !hasNavigated) {
       hasNavigated = true
       onSplashAnimationFinished()
       onGetStarted()
@@ -99,6 +102,7 @@ fun WelcomeScreen(
 
   LaunchedEffect(Unit) {
     if (skipAnimation) {
+      isFormationComplete = true
       return@LaunchedEffect
     }
 
@@ -110,8 +114,8 @@ fun WelcomeScreen(
       launch { brandOffsetY.animateTo(0f, tween(250, easing = FastOutSlowInEasing)) }
       launch { taglineAlpha.animateTo(1f, tween(250, easing = FastOutSlowInEasing)) }
       taglineOffsetY.animateTo(0f, tween(250, easing = FastOutSlowInEasing))
-      delay(300L)
-      navigateToWelcomeOnce()
+      isFormationComplete = true
+      onSplashAnimationFinished()
       return@LaunchedEffect
     }
 
@@ -140,18 +144,33 @@ fun WelcomeScreen(
     }
     taglineOffsetY.animateTo(0f, tween(durationMillis = 250, easing = FastOutSlowInEasing))
 
-    // Phase 5: Final settling (300 ms) into static resting logo, then transition
+    // Phase 5: Final settling (300 ms) into static resting logo, then unlock left-swipe
     ambientGlow.animateTo(0f, tween(durationMillis = 300, easing = FastOutSlowInEasing))
-    navigateToWelcomeOnce()
+    isFormationComplete = true
+    onSplashAnimationFinished()
   }
 
   NumoScreenBackground(
-    modifier = Modifier.clickable(
-      interactionSource = remember { MutableInteractionSource() },
-      indication = null,
-      enabled = skipAnimation || logoReveal.value >= 1f,
-      onClick = { navigateToWelcomeOnce() }
-    )
+    modifier = Modifier.pointerInput(isFormationComplete) {
+      if (!isFormationComplete) return@pointerInput
+      var cumulativeDragX = 0f
+      detectHorizontalDragGestures(
+        onDragStart = { cumulativeDragX = 0f },
+        onDragEnd = {
+          if (cumulativeDragX <= -swipeThresholdPx) {
+            navigateToWelcomeOnce()
+          }
+          cumulativeDragX = 0f
+        },
+        onDragCancel = { cumulativeDragX = 0f },
+        onHorizontalDrag = { _, dragAmount ->
+          cumulativeDragX += dragAmount
+          if (cumulativeDragX <= -swipeThresholdPx) {
+            navigateToWelcomeOnce()
+          }
+        }
+      )
+    }
   ) {
     NumoFloatingDecorations(variant = 0)
 
@@ -236,7 +255,7 @@ fun WelcomeScreen(
           .shadow(8.dp, RoundedCornerShape(50), spotColor = Color(0x28FFFFFF))
           .clip(RoundedCornerShape(50))
           .background(Color.White.copy(alpha = 0.82f))
-          .clickable(enabled = skipAnimation || logoReveal.value >= 1f) {
+          .clickable(enabled = isFormationComplete) {
             navigateToWelcomeOnce()
           }
           .padding(horizontal = 16.dp, vertical = 10.dp)

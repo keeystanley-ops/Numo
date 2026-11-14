@@ -1,9 +1,12 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,10 +21,13 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -39,16 +45,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Shared Neumorphic Back Button matching Screens 3, 4, 5
+ * Shared Neumorphic Back Button (>= 44dp touch target + pressed feedback)
  */
 @Composable
 fun NumoBackCircleButton(
   onClick: () -> Unit,
   modifier: Modifier = Modifier
 ) {
+  val interactionSource = remember { MutableInteractionSource() }
+  val isPressed by interactionSource.collectIsPressedAsState()
+  val pressScale by animateFloatAsState(
+    targetValue = if (isPressed) 0.92f else 1f,
+    label = "back_btn_scale"
+  )
+
   Box(
     modifier = modifier
-      .size(38.dp)
+      .size(44.dp)
+      .graphicsLayer {
+        scaleX = pressScale
+        scaleY = pressScale
+        alpha = if (isPressed) 0.85f else 1f
+      }
       .shadow(8.dp, CircleShape, spotColor = NumoDS.CardShadowWarm)
       .clip(CircleShape)
       .background(
@@ -56,15 +74,19 @@ fun NumoBackCircleButton(
           colors = listOf(NumoDS.CardSurfaceLight, NumoDS.CardSurface)
         )
       )
-      .border(1.2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
-      .clickable(onClick = onClick),
+      .border(1.2.dp, Color.White.copy(alpha = 0.88f), CircleShape)
+      .clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = onClick
+      ),
     contentAlignment = Alignment.Center
   ) {
     Icon(
       imageVector = Icons.AutoMirrored.Filled.ArrowBack,
       contentDescription = "Back",
       tint = NumoDS.TextPrimary,
-      modifier = Modifier.size(18.dp)
+      modifier = Modifier.size(20.dp)
     )
   }
 }

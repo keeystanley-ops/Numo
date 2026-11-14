@@ -1,6 +1,5 @@
 package com.example.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,19 +11,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,17 +38,20 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.auth.ClerkAuthRepository
+import com.example.ui.components.Numo3DEnvelopeLockIllustration
+import com.example.ui.components.NumoBackCircleButton
+import com.example.ui.components.NumoDS
+import com.example.ui.components.NumoFloatingDecorations
+import com.example.ui.components.NumoPrimaryButton
+import com.example.ui.components.NumoScreenBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -75,270 +75,228 @@ fun VerifyCodeScreen(
     }
   }
 
-  Surface(
-    modifier = Modifier.fillMaxSize(),
-    color = Color(0xFFF7FDFB)
-  ) {
-    Box(
+  NumoScreenBackground(modifier = Modifier.testTag("verify_code_screen")) {
+    NumoFloatingDecorations(variant = 1)
+
+    Column(
       modifier = Modifier
         .fillMaxSize()
-        .background(
-          brush = Brush.verticalGradient(
-            colors = listOf(
-              Color(0xFFD2FCEF),
-              Color(0xFFE6FAF3),
-              Color(0xFFF4FDF9),
-              Color(0xFFFFFFFF)
-            )
-          )
-        )
         .statusBarsPadding()
         .navigationBarsPadding()
+        .imePadding()
+        .verticalScroll(rememberScrollState())
+        .padding(horizontal = 24.dp),
+      horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      Column(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Back Button
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        // Back Button
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Box(
-            modifier = Modifier
-              .size(42.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(Color.White)
-              .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-              .clickable { onBack() },
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-              contentDescription = "Back",
-              tint = Color(0xFF001A49),
-              modifier = Modifier.size(20.dp)
-            )
-          }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Numo Brand Logo
-        Image(
-          painter = painterResource(id = R.drawable.ic_numo_leaf),
-          contentDescription = "Numo Brand Logo",
-          modifier = Modifier
-            .size(width = 68.dp, height = 54.dp),
-          contentScale = ContentScale.Fit
+        NumoBackCircleButton(
+          onClick = onBack,
+          modifier = Modifier.testTag("btn_verify_back")
         )
+      }
 
-        Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-          text = "Verify Your Email",
-          fontSize = 28.sp,
-          fontWeight = FontWeight.Bold,
-          fontFamily = FontFamily.SansSerif,
-          color = Color(0xFF001A49)
-        )
+      // 3D Envelope illustration
+      Numo3DEnvelopeLockIllustration(
+        modifier = Modifier.size(144.dp)
+      )
 
-        Spacer(modifier = Modifier.height(8.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
-        Text(
-          text = "Enter the 6-digit verification code sent to\n$userEmail",
-          fontSize = 15.sp,
-          fontWeight = FontWeight.Medium,
-          color = Color(0xFF334E68),
-          lineHeight = 22.sp,
-          textAlign = TextAlign.Center
-        )
+      Text(
+        text = "Verify Your Email",
+        fontSize = 27.sp,
+        fontWeight = FontWeight.ExtraBold,
+        fontFamily = FontFamily.SansSerif,
+        color = NumoDS.TextPrimary,
+        letterSpacing = (-0.5).sp,
+        textAlign = TextAlign.Center
+      )
 
-        Spacer(modifier = Modifier.height(30.dp))
+      Spacer(modifier = Modifier.height(8.dp))
 
-        // Error message if any
-        if (errorMessage != null) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clip(RoundedCornerShape(14.dp))
-              .background(Color(0xFFFFEEEE))
-              .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(14.dp))
-              .padding(14.dp)
-          ) {
-            Text(
-              text = errorMessage ?: "",
-              color = Color(0xFFB91C1C),
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Medium,
-              textAlign = TextAlign.Center,
-              modifier = Modifier.fillMaxWidth()
-            )
-          }
-          Spacer(modifier = Modifier.height(16.dp))
-        }
+      Text(
+        text = "Enter the 6-digit verification code sent to\n$userEmail",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Normal,
+        color = NumoDS.TextSecondary,
+        lineHeight = 20.sp,
+        textAlign = TextAlign.Center
+      )
 
-        // 6-digit OTP code boxes
-        Box(
-          modifier = Modifier.fillMaxWidth(),
-          contentAlignment = Alignment.Center
-        ) {
-          // Hidden TextField receiving keystrokes
-          BasicTextField(
-            value = code,
-            onValueChange = {
-              if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                code = it
-                errorMessage = null
-              }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            cursorBrush = SolidColor(Color.Transparent),
-            modifier = Modifier
-              .fillMaxWidth()
-              .testTag("otp_code_hidden_input")
-          )
+      Spacer(modifier = Modifier.height(26.dp))
 
-          // Visible digit boxes
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            for (i in 0 until 6) {
-              val digit = if (i < code.length) code[i].toString() else ""
-              val isFocused = (i == code.length)
-
-              Box(
-                modifier = Modifier
-                  .size(48.dp)
-                  .clip(RoundedCornerShape(14.dp))
-                  .background(Color.White)
-                  .border(
-                    width = if (isFocused) 2.dp else 1.2.dp,
-                    color = if (isFocused) Color(0xFF029766) else Color(0xFFCBD5E1),
-                    shape = RoundedCornerShape(14.dp)
-                  ),
-                contentAlignment = Alignment.Center
-              ) {
-                Text(
-                  text = digit,
-                  fontSize = 22.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color(0xFF001A49)
-                )
-              }
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        // Verify & Continue Button
+      // Error message if any
+      if (errorMessage != null) {
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp)
-            .shadow(
-              elevation = 12.dp,
-              shape = RoundedCornerShape(27.dp),
-              ambientColor = Color(0x55027858),
-              spotColor = Color(0x80029766)
-            )
-            .clip(RoundedCornerShape(27.dp))
-            .background(
-              brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF029766), Color(0xFF027858))
-              )
-            )
-            .clickable(enabled = !isLoading) {
-              if (code.length < 6) {
-                errorMessage = "Please enter the full 6-digit verification code."
-                return@clickable
-              }
-              isLoading = true
-              errorMessage = null
-              coroutineScope.launch {
-                val res = ClerkAuthRepository.attemptVerification(signUpId, code)
-                isLoading = false
-                if (res.success) {
-                  onVerificationSuccess(res.sessionId ?: "session_verified")
-                } else {
-                  errorMessage = res.errorMessage ?: "Verification failed. The code may be incorrect or expired."
-                }
-              }
-            }
-            .testTag("verify_continue_button"),
-          contentAlignment = Alignment.Center
-        ) {
-          if (isLoading) {
-            CircularProgressIndicator(
-              color = Color.White,
-              modifier = Modifier.size(24.dp),
-              strokeWidth = 2.5.dp
-            )
-          } else {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.Center
-            ) {
-              Text(
-                text = "Verify & Continue",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.2.sp
-              )
-              Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                text = "→",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-              )
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Resend Code action
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.Center,
-          modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFFF1F2))
+            .border(1.dp, Color(0xFFFECDD3), RoundedCornerShape(16.dp))
+            .padding(14.dp)
         ) {
           Text(
-            text = "Didn't receive the code? ",
-            color = Color(0xFF64748B),
-            fontSize = 14.sp
+            text = errorMessage ?: "",
+            color = Color(0xFFB91C1C),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
           )
-          if (resendCountdown > 0) {
-            Text(
-              text = "Resend in ${resendCountdown}s",
-              color = Color(0xFF94A3B8),
-              fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold
-            )
-          } else {
-            Text(
-              text = "Resend Code",
-              color = Color(0xFF029766),
-              fontSize = 14.sp,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.clickable {
-                coroutineScope.launch {
-                  resendCountdown = 45
-                  ClerkAuthRepository.resendVerificationCode(signUpId)
-                }
-              }
-            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+      }
+
+      // 6-digit OTP code boxes
+      Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+      ) {
+        BasicTextField(
+          value = code,
+          onValueChange = {
+            if (it.length <= 6 && it.all { char -> char.isDigit() }) {
+              code = it
+              errorMessage = null
+            }
+          },
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+          cursorBrush = SolidColor(Color.Transparent),
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("otp_code_hidden_input")
+        )
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        ) {
+          for (i in 0 until 6) {
+            val digit = if (i < code.length) code[i].toString() else ""
+            val isFocused = (i == code.length)
+            val boxShape = RoundedCornerShape(16.dp)
+
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .height(54.dp)
+                .shadow(
+                  elevation = if (isFocused) 8.dp else 4.dp,
+                  shape = boxShape,
+                  ambientColor = NumoDS.CardShadowWarm.copy(alpha = 0.25f)
+                )
+                .clip(boxShape)
+                .background(
+                  Brush.verticalGradient(
+                    colors = listOf(Color(0xFFFAF0E4), Color(0xFFEEDCC8))
+                  )
+                )
+                .border(
+                  width = if (isFocused) 1.8.dp else 1.dp,
+                  color = if (isFocused) NumoDS.Turquoise else Color(0xFFD8C5B2),
+                  shape = boxShape
+                ),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = digit,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = NumoDS.TextPrimary
+              )
+            }
           }
         }
       }
+
+      Spacer(modifier = Modifier.height(28.dp))
+
+      // Verify & Continue Button
+      if (isLoading) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          CircularProgressIndicator(
+            color = NumoDS.Turquoise,
+            modifier = Modifier.size(26.dp),
+            strokeWidth = 2.5.dp
+          )
+        }
+      } else {
+        NumoPrimaryButton(
+          text = "Verify & Continue",
+          onClick = {
+            if (code.length < 6) {
+              errorMessage = "Please enter the full 6-digit verification code."
+              return@NumoPrimaryButton
+            }
+            isLoading = true
+            errorMessage = null
+            coroutineScope.launch {
+              val res = ClerkAuthRepository.attemptVerification(signUpId, code)
+              isLoading = false
+              if (res.success) {
+                onVerificationSuccess(res.sessionId ?: "session_verified")
+              } else {
+                errorMessage = res.errorMessage ?: "Verification failed. The code may be incorrect or expired."
+              }
+            }
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("verify_continue_button"),
+          height = 54.dp
+        )
+      }
+
+      Spacer(modifier = Modifier.height(22.dp))
+
+      // Resend Code action
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Text(
+          text = "Didn't receive the code? ",
+          color = NumoDS.TextSecondary,
+          fontSize = 14.sp
+        )
+        if (resendCountdown > 0) {
+          Text(
+            text = "Resend in ${resendCountdown}s",
+            color = NumoDS.TextMuted,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+          )
+        } else {
+          Text(
+            text = "Resend Code",
+            color = NumoDS.Turquoise,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.clickable {
+              coroutineScope.launch {
+                resendCountdown = 45
+                ClerkAuthRepository.resendVerificationCode(signUpId)
+              }
+            }
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(28.dp))
     }
   }
 }

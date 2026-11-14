@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.auth.ClerkAuthRepository
 import com.example.ui.components.Numo3DWalletIllustration
+import com.example.ui.components.NumoBackCircleButton
 import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
 import com.example.ui.components.NumoNeumorphicCard
@@ -121,19 +123,27 @@ fun AuthScreen(
         .fillMaxSize()
         .statusBarsPadding()
         .navigationBarsPadding()
+        .imePadding()
         .verticalScroll(rememberScrollState())
         .padding(horizontal = 24.dp)
     ) {
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(10.dp))
 
-      // Upper-right 3D Wallet Illustration
-      Box(
+      // Top bar: Back button on upper-left, 3D Wallet illustration on upper-right
+      Row(
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.CenterEnd
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
       ) {
+        NumoBackCircleButton(
+          onClick = onBack,
+          modifier = Modifier
+            .padding(top = 4.dp)
+            .testTag("btn_welcome_back")
+        )
         Numo3DWalletIllustration(
-          size = 122.dp,
-          modifier = Modifier.padding(end = 16.dp)
+          size = 118.dp,
+          modifier = Modifier.padding(end = 8.dp)
         )
       }
 

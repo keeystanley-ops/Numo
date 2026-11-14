@@ -13,6 +13,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -168,8 +170,20 @@ class MainActivity : ComponentActivity() {
         AnimatedContent(
           targetState = currentScreen,
           transitionSpec = {
-            fadeIn(animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)) togetherWith
-              fadeOut(animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing))
+            if (initialState == AppScreen.WELCOME && targetState == AppScreen.SIGN_IN) {
+              (slideInHorizontally(tween(420, easing = FastOutSlowInEasing)) { it } +
+                fadeIn(tween(350))) togetherWith
+                (slideOutHorizontally(tween(420, easing = FastOutSlowInEasing)) { -it / 2 } +
+                  fadeOut(tween(300)))
+            } else if (initialState == AppScreen.SIGN_IN && targetState == AppScreen.WELCOME) {
+              (slideInHorizontally(tween(380, easing = FastOutSlowInEasing)) { -it / 2 } +
+                fadeIn(tween(320))) togetherWith
+                (slideOutHorizontally(tween(380, easing = FastOutSlowInEasing)) { it } +
+                  fadeOut(tween(280)))
+            } else {
+              fadeIn(animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing)) togetherWith
+                fadeOut(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing))
+            }
           },
           label = "AppScreenTransition"
         ) { screen ->
@@ -328,6 +342,9 @@ class MainActivity : ComponentActivity() {
             AccountConnectedScreen(
               connectedAccounts = userAccounts,
               currency = userCurrency,
+              onBack = {
+                currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+              },
               onContinue = {
                 currentScreen = AppScreen.ALL_SET
               }

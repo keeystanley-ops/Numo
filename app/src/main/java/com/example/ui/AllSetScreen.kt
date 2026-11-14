@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -19,10 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.Numo3DTrophyIllustration
+import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
-import com.example.ui.theme.NumoDS
-import com.example.ui.theme.NumoPrimaryButton
-import com.example.ui.theme.NumoScreenBackground
+import com.example.ui.components.NumoPrimaryButton
+import com.example.ui.components.NumoScreenBackground
 
 /**
  * Screen 7: You're All Set! — Exact match to the Numo onboarding reference.
@@ -84,7 +85,10 @@ fun AllSetScreen(
       NumoPrimaryButton(
         text = "Go to Dashboard",
         onClick = onGoToHome,
-        modifier = Modifier.testTag("btn_go_to_dashboard")
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("btn_go_to_dashboard"),
+        height = 54.dp
       )
 
       Spacer(modifier = Modifier.height(16.dp))
