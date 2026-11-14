@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -240,42 +242,96 @@ fun NumoFloatingDecorations(
 @Composable
 fun Numo3DLogoEmblem(
   size: Dp = 92.dp,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  revealProgress: Float = 1f,
+  ambientGlowAlpha: Float = 0f,
+  lightSweepProgress: Float = -1f,
+  logoAlpha: Float = 1f
 ) {
   Canvas(modifier = modifier.size(size)) {
     val w = this.size.width
     val h = this.size.height
     val strokeW = w * 0.24f
+    val clampedReveal = revealProgress.coerceIn(0f, 1f)
+    val clampedAlpha = logoAlpha.coerceIn(0f, 1f)
 
-    // Soft ambient shadow
-    drawRoundRect(
-      color = Color(0x280A6F62),
-      topLeft = Offset(w * 0.06f, h * 0.14f),
-      size = Size(w * 0.88f, h * 0.84f),
-      cornerRadius = CornerRadius(w * 0.18f)
-    )
+    // Phase 1 / Phase 3: Subtle turquoise ambient glow behind the central logo position
+    if (ambientGlowAlpha > 0.005f) {
+      drawCircle(
+        brush = Brush.radialGradient(
+          colors = listOf(
+            NumoDS.Cyan.copy(alpha = 0.30f * ambientGlowAlpha),
+            NumoDS.Turquoise.copy(alpha = 0.14f * ambientGlowAlpha),
+            Color.Transparent
+          ),
+          center = Offset(w * 0.50f, h * 0.52f),
+          radius = w * 0.85f
+        ),
+        radius = w * 0.85f,
+        center = Offset(w * 0.50f, h * 0.52f)
+      )
+    }
 
-    // Left vertical pillar
-    drawRoundRect(
-      brush = Brush.verticalGradient(
-        colors = listOf(Color(0xFF7AF5ED), NumoDS.Cyan, NumoDS.Turquoise)
-      ),
-      topLeft = Offset(w * 0.08f, h * 0.08f),
-      size = Size(strokeW, h * 0.84f),
-      cornerRadius = CornerRadius(strokeW * 0.45f)
-    )
+    if (clampedReveal <= 0.001f || clampedAlpha <= 0.001f) {
+      return@Canvas
+    }
 
-    // Right vertical pillar
-    drawRoundRect(
-      brush = Brush.verticalGradient(
-        colors = listOf(Color(0xFF56F6EC), NumoDS.Turquoise, NumoDS.HeroTealDark)
-      ),
-      topLeft = Offset(w * 0.68f, h * 0.08f),
-      size = Size(strokeW, h * 0.84f),
-      cornerRadius = CornerRadius(strokeW * 0.45f)
-    )
+    // Soft ambient shadow (settles smoothly as the N forms)
+    val shadowAlpha = (clampedReveal * clampedAlpha).coerceIn(0f, 1f)
+    if (shadowAlpha > 0.01f) {
+      drawRoundRect(
+        color = Color(0x280A6F62).copy(alpha = 0.157f * shadowAlpha),
+        topLeft = Offset(w * 0.06f, h * 0.14f),
+        size = Size(w * 0.88f, h * 0.84f),
+        cornerRadius = CornerRadius(w * 0.18f)
+      )
+    }
 
-    // Diagonal folded ribbon
+    // Progressive stroke-order mask fractions over the exact original N geometry:
+    // 1) Left pillar (0.00 -> 0.38): bottom-to-top reveal
+    // 2) Diagonal ribbon (0.30 -> 0.72): top-left to bottom-right reveal
+    // 3) Right pillar (0.62 -> 1.00): bottom-to-top reveal
+    val leftFrac = (clampedReveal / 0.38f).coerceIn(0f, 1f)
+    val diagFrac = ((clampedReveal - 0.30f) / 0.42f).coerceIn(0f, 1f)
+    val rightFrac = ((clampedReveal - 0.62f) / 0.38f).coerceIn(0f, 1f)
+
+    // 1. Left vertical pillar (unmodified geometry & gradient, masked from bottom up)
+    if (leftFrac > 0.001f) {
+      val pillarTop = h * 0.08f
+      val pillarBottom = h * 0.92f
+      val clipTop = pillarBottom - (pillarBottom - pillarTop) * leftFrac
+      clipRect(left = 0f, top = clipTop, right = w, bottom = h) {
+        drawRoundRect(
+          brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF7AF5ED), NumoDS.Cyan, NumoDS.Turquoise)
+          ),
+          topLeft = Offset(w * 0.08f, h * 0.08f),
+          size = Size(strokeW, h * 0.84f),
+          cornerRadius = CornerRadius(strokeW * 0.45f),
+          alpha = clampedAlpha
+        )
+      }
+    }
+
+    // 2. Right vertical pillar (unmodified geometry & gradient, masked from bottom up)
+    if (rightFrac > 0.001f) {
+      val pillarTop = h * 0.08f
+      val pillarBottom = h * 0.92f
+      val clipTop = pillarBottom - (pillarBottom - pillarTop) * rightFrac
+      clipRect(left = 0f, top = clipTop, right = w, bottom = h) {
+        drawRoundRect(
+          brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF56F6EC), NumoDS.Turquoise, NumoDS.HeroTealDark)
+          ),
+          topLeft = Offset(w * 0.68f, h * 0.08f),
+          size = Size(strokeW, h * 0.84f),
+          cornerRadius = CornerRadius(strokeW * 0.45f),
+          alpha = clampedAlpha
+        )
+      }
+    }
+
+    // 3. Diagonal folded ribbon (unmodified path & gradient, masked from top-left to bottom-right)
     val diagPath = Path().apply {
       moveTo(w * 0.12f, h * 0.14f)
       lineTo(w * 0.30f, h * 0.10f)
@@ -283,14 +339,74 @@ fun Numo3DLogoEmblem(
       lineTo(w * 0.70f, h * 0.88f)
       close()
     }
-    drawPath(
-      path = diagPath,
-      brush = Brush.linearGradient(
-        colors = listOf(Color(0xFF56F6EC), NumoDS.HeroTealMid, NumoDS.HeroTealDark),
-        start = Offset(w * 0.15f, h * 0.12f),
-        end = Offset(w * 0.85f, h * 0.86f)
-      )
-    )
+    if (diagFrac > 0.001f) {
+      val clipTopLeftToBottomRight = Path().apply {
+        val advance = -0.25f + 1.50f * diagFrac
+        moveTo(0f, 0f)
+        lineTo(w * advance, 0f)
+        lineTo(w * (advance - 0.55f), h)
+        lineTo(0f, h)
+        close()
+      }
+      val drawDiagonal = {
+        drawPath(
+          path = diagPath,
+          brush = Brush.linearGradient(
+            colors = listOf(Color(0xFF56F6EC), NumoDS.HeroTealMid, NumoDS.HeroTealDark),
+            start = Offset(w * 0.15f, h * 0.12f),
+            end = Offset(w * 0.85f, h * 0.86f)
+          ),
+          alpha = clampedAlpha
+        )
+      }
+      if (diagFrac >= 0.999f) {
+        drawDiagonal()
+      } else {
+        clipPath(clipTopLeftToBottomRight) {
+          drawDiagonal()
+        }
+      }
+    }
+
+    // Phase 3: Subtle emerald/turquoise light sweep across the completed N silhouette
+    if (clampedReveal >= 0.99f && lightSweepProgress in 0f..1f) {
+      val nSilhouette = Path().apply {
+        addRoundRect(
+          androidx.compose.ui.geometry.RoundRect(
+            left = w * 0.08f,
+            top = h * 0.08f,
+            right = w * 0.08f + strokeW,
+            bottom = h * 0.92f,
+            cornerRadius = CornerRadius(strokeW * 0.45f)
+          )
+        )
+        addRoundRect(
+          androidx.compose.ui.geometry.RoundRect(
+            left = w * 0.68f,
+            top = h * 0.08f,
+            right = w * 0.68f + strokeW,
+            bottom = h * 0.92f,
+            cornerRadius = CornerRadius(strokeW * 0.45f)
+          )
+        )
+        addPath(diagPath)
+      }
+      val sweepX = (-0.4f + 1.8f * lightSweepProgress) * w
+      clipPath(nSilhouette) {
+        drawRect(
+          brush = Brush.linearGradient(
+            colors = listOf(
+              Color.Transparent,
+              Color.White.copy(alpha = 0.28f),
+              NumoDS.CyanBright.copy(alpha = 0.22f),
+              Color.Transparent
+            ),
+            start = Offset(sweepX - w * 0.22f, 0f),
+            end = Offset(sweepX + w * 0.22f, h)
+          )
+        )
+      }
+    }
   }
 }
 

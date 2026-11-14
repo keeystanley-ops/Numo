@@ -8,11 +8,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.example.auth.ClerkAuthRepository
@@ -74,6 +81,7 @@ class MainActivity : ComponentActivity() {
         val coroutineScope = rememberCoroutineScope()
 
         var currentScreen by remember { mutableStateOf(AppScreen.WELCOME) }
+        var hasCompletedSplashAnimation by rememberSaveable { mutableStateOf(false) }
         var authenticatedUser by remember { mutableStateOf<String?>(null) }
         var authProvider by remember { mutableStateOf("Email") }
         var pendingSignUpId by remember { mutableStateOf("") }
@@ -157,10 +165,23 @@ class MainActivity : ComponentActivity() {
           }
         }
 
-        when (currentScreen) {
+        AnimatedContent(
+          targetState = currentScreen,
+          transitionSpec = {
+            fadeIn(animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)) togetherWith
+              fadeOut(animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing))
+          },
+          label = "AppScreenTransition"
+        ) { screen ->
+          when (screen) {
           AppScreen.WELCOME -> {
             WelcomeScreen(
+              skipAnimation = hasCompletedSplashAnimation,
+              onSplashAnimationFinished = {
+                hasCompletedSplashAnimation = true
+              },
               onGetStarted = {
+                hasCompletedSplashAnimation = true
                 currentScreen = AppScreen.SIGN_IN
               }
             )
@@ -342,6 +363,7 @@ class MainActivity : ComponentActivity() {
                 currentScreen = AppScreen.WELCOME
               }
             )
+          }
           }
         }
       }
