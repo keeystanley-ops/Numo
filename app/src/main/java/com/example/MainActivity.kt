@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.example.auth.ClerkAuthRepository
+import com.example.data.NumoFinancialEngine
 import com.example.ui.AllSetScreen
 import com.example.ui.AuthScreen
 import com.example.ui.DashboardScreen
@@ -23,6 +24,7 @@ import com.example.ui.ForgotPasswordScreen
 import com.example.ui.SignUpScreen
 import com.example.ui.VerifyCodeScreen
 import com.example.ui.WelcomeScreen
+import com.example.ui.onboarding.AccountConnectedScreen
 import com.example.ui.onboarding.OnboardingAccountsScreen
 import com.example.ui.onboarding.OnboardingCurrencyScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -36,6 +38,7 @@ enum class AppScreen {
   VERIFY_CODE,
   ONBOARDING_CURRENCY,
   ONBOARDING_ACCOUNTS,
+  ACCOUNT_CONNECTED,
   ALL_SET,
   DASHBOARD
 }
@@ -265,12 +268,16 @@ class MainActivity : ComponentActivity() {
 
           AppScreen.ONBOARDING_CURRENCY -> {
             BackHandler {
-              currentScreen = AppScreen.SIGN_UP
+              currentScreen = AppScreen.SIGN_IN
             }
             OnboardingCurrencyScreen(
               initialCurrency = userCurrency,
+              onBack = {
+                currentScreen = AppScreen.SIGN_IN
+              },
               onContinue = { selectedCurrency ->
                 userCurrency = selectedCurrency
+                NumoFinancialEngine.currency = selectedCurrency
                 currentScreen = AppScreen.ONBOARDING_ACCOUNTS
               }
             )
@@ -287,7 +294,20 @@ class MainActivity : ComponentActivity() {
               },
               onComplete = { accounts ->
                 userAccounts = accounts
-                // After setting accounts, proceed to All set celebration animation
+                // Only show Screen 6 (Account Connected) after account connection succeeds
+                currentScreen = AppScreen.ACCOUNT_CONNECTED
+              }
+            )
+          }
+
+          AppScreen.ACCOUNT_CONNECTED -> {
+            BackHandler {
+              currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+            }
+            AccountConnectedScreen(
+              connectedAccounts = userAccounts,
+              currency = userCurrency,
+              onContinue = {
                 currentScreen = AppScreen.ALL_SET
               }
             )
@@ -295,7 +315,7 @@ class MainActivity : ComponentActivity() {
 
           AppScreen.ALL_SET -> {
             BackHandler {
-              currentScreen = AppScreen.ONBOARDING_ACCOUNTS
+              currentScreen = AppScreen.ACCOUNT_CONNECTED
             }
             AllSetScreen(
               onGoToHome = {

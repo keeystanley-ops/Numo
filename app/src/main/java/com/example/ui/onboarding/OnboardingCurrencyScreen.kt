@@ -1,5 +1,6 @@
 package com.example.ui.onboarding
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,23 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,355 +31,307 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.CurrencyRepository
-import com.example.ui.animation.bouncyClickable
-import com.example.ui.theme.NumoDarkForestGreen
-import com.example.ui.theme.NumoElementsCorners
-import com.example.ui.theme.NumoGlassCardBg
-import com.example.ui.theme.NumoGlassCardBorder
-import com.example.ui.theme.NumoInputBg
-import com.example.ui.theme.NumoInputPlaceholder
-import com.example.ui.theme.NumoMintBackground
-import com.example.ui.theme.NumoSlateGreen
+import com.example.data.NumoFinancialEngine
+import com.example.ui.components.Numo3DCurrencyCoinsIllustration
+import com.example.ui.components.NumoBackCircleButton
+import com.example.ui.components.NumoFloatingDecorations
+import com.example.ui.components.NumoRadioIndicator
+import com.example.ui.theme.NumoDS
+import com.example.ui.theme.NumoPrimaryButton
+import com.example.ui.theme.NumoScreenBackground
+
+private data class OnboardingCurrencyItem(
+  val code: String,
+  val name: String
+)
+
+private val ONBOARDING_CURRENCIES = listOf(
+  OnboardingCurrencyItem("KES", "Kenyan Shilling"),
+  OnboardingCurrencyItem("USD", "US Dollar"),
+  OnboardingCurrencyItem("EUR", "Euro"),
+  OnboardingCurrencyItem("GBP", "British Pound"),
+  OnboardingCurrencyItem("TZS", "Tanzanian Shilling"),
+  OnboardingCurrencyItem("UGX", "Ugandan Shilling")
+)
 
 /**
- * Screen 1 of Onboarding: "Select Currency" matching image_c32814bd.png identically:
- * - Mint background (#E5F6F1)
- * - Top Bar: Chevron Back on left, "Select Currency" centered, Close 'X' on right
- * - Active Currency Frosted Card with flag circle, code, name, "Edit" button, and exchange rate
- * - Mint frosted search bar: "Search country or currency code"
- * - Vertical list of currencies with circular flag icons, codes, and checkmarks
+ * Screen 4: Select Your Currency — Exact match to the Numo onboarding reference.
+ *
+ * Updates both `NumoFinancialEngine.currency` and the parent onboarding state via `onContinue`.
  */
 @Composable
 fun OnboardingCurrencyScreen(
-  initialCurrency: String = "USD",
+  initialCurrency: String = "KES",
   onBack: () -> Unit = {},
   onContinue: (selectedCurrency: String) -> Unit
 ) {
-  var selectedCode by remember { mutableStateOf(initialCurrency) }
-  var searchQuery by remember { mutableStateOf("") }
-
-  val activeCurrency by remember(selectedCode) {
-    derivedStateOf { CurrencyRepository.findByCode(selectedCode) }
+  var selectedCode by remember {
+    mutableStateOf(
+      if (ONBOARDING_CURRENCIES.any { it.code == initialCurrency }) initialCurrency else "KES"
+    )
   }
 
-  // Pre-sorted priority currency list matching the design: EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, SEK, NZD, SGD, KES, USD
-  val priorityCodes = listOf("EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR", "SEK", "NZD", "SGD", "KES", "USD", "ZAR", "AED")
+  NumoScreenBackground(modifier = Modifier.testTag("onboarding_currency_screen")) {
+    NumoFloatingDecorations(variant = 1)
 
-  val displayCurrencies by remember(searchQuery) {
-    derivedStateOf {
-      val query = searchQuery.trim().lowercase()
-      if (query.isEmpty()) {
-        val priorityList = priorityCodes.mapNotNull { CurrencyRepository.findByCode(it) }
-        val others = CurrencyRepository.allCurrencies.filter { it.code !in priorityCodes }
-        priorityList + others
-      } else {
-        CurrencyRepository.allCurrencies.filter { item ->
-          item.code.lowercase().contains(query) ||
-            item.name.lowercase().contains(query) ||
-            item.country.lowercase().contains(query) ||
-            item.symbol.lowercase().contains(query)
-        }
-      }
-    }
-  }
-
-  Surface(
-    modifier = Modifier.fillMaxSize(),
-    color = NumoMintBackground
-  ) {
-    Box(
+    Column(
       modifier = Modifier
         .fillMaxSize()
-        .background(NumoMintBackground)
         .statusBarsPadding()
         .navigationBarsPadding()
+        .padding(horizontal = 24.dp),
+      horizontalAlignment = Alignment.CenterHorizontally
     ) {
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Top bar with Back button
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        NumoBackCircleButton(
+          onClick = onBack,
+          modifier = Modifier.testTag("btn_currency_back")
+        )
+      }
+
+      // 3D Kenyan Currency Coins illustration
+      Numo3DCurrencyCoinsIllustration(
+        modifier = Modifier.size(134.dp)
+      )
+
+      Spacer(modifier = Modifier.height(4.dp))
+
+      // Heading
+      Text(
+        text = "Select Your Currency",
+        fontSize = 25.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = NumoDS.TextPrimary,
+        letterSpacing = (-0.5).sp,
+        textAlign = TextAlign.Center
+      )
+
+      Spacer(modifier = Modifier.height(6.dp))
+
+      // Subtitle
+      Text(
+        text = "Choose your preferred currency to\ncontinue with Numo.",
+        fontSize = 13.5.sp,
+        lineHeight = 19.sp,
+        fontWeight = FontWeight.Normal,
+        color = NumoDS.TextSecondary,
+        textAlign = TextAlign.Center
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Currency cards list
       Column(
         modifier = Modifier
-          .fillMaxSize()
-          .padding(horizontal = 18.dp)
+          .weight(1f)
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
       ) {
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 1. Top Navigation Bar
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 2.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          IconButton(
-            onClick = { onBack() },
-            modifier = Modifier
-              .size(36.dp)
-              .testTag("btn_currency_back")
-          ) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-              contentDescription = "Back",
-              tint = NumoDarkForestGreen,
-              modifier = Modifier.size(24.dp)
-            )
-          }
-
-          Text(
-            text = "Select Currency",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.SansSerif,
-            color = NumoDarkForestGreen,
-            modifier = Modifier.testTag("title_select_currency")
+        ONBOARDING_CURRENCIES.forEach { item ->
+          val isSelected = selectedCode == item.code
+          CurrencySelectionCard(
+            item = item,
+            isSelected = isSelected,
+            onClick = { selectedCode = item.code },
+            modifier = Modifier.testTag("currency_option_${item.code}")
           )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+      }
 
-          IconButton(
-            onClick = { onContinue(selectedCode) },
-            modifier = Modifier
-              .size(36.dp)
-              .testTag("btn_currency_close")
-          ) {
-            Icon(
-              imageVector = Icons.Default.Close,
-              contentDescription = "Confirm",
-              tint = NumoDarkForestGreen,
-              modifier = Modifier.size(20.dp)
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // Continue primary button — updates real application currency state
+      NumoPrimaryButton(
+        text = "Continue",
+        onClick = {
+          NumoFinancialEngine.currency = selectedCode
+          onContinue(selectedCode)
+        },
+        modifier = Modifier.testTag("btn_currency_continue")
+      )
+
+      Spacer(modifier = Modifier.height(20.dp))
+    }
+  }
+}
+
+@Composable
+private fun CurrencySelectionCard(
+  item: OnboardingCurrencyItem,
+  isSelected: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  val shape = RoundedCornerShape(18.dp)
+  val cardBrush = if (isSelected) {
+    Brush.verticalGradient(
+      colors = listOf(Color(0xFFFFF8F0), Color(0xFFF6E7D6))
+    )
+  } else {
+    Brush.verticalGradient(
+      colors = listOf(Color(0xFFFFF5EA), Color(0xFFF3E2D0))
+    )
+  }
+  val borderColor = if (isSelected) NumoDS.Turquoise.copy(alpha = 0.55f) else Color(0xFFFFFBF6)
+
+  Box(
+    modifier = modifier
+      .fillMaxWidth()
+      .height(56.dp)
+      .shadow(
+        elevation = if (isSelected) 10.dp else 6.dp,
+        shape = shape,
+        ambientColor = NumoDS.CardShadowWarm.copy(alpha = 0.3f),
+        spotColor = NumoDS.CardShadowWarm.copy(alpha = 0.35f)
+      )
+      .clip(shape)
+      .background(cardBrush)
+      .border(if (isSelected) 1.5.dp else 1.dp, borderColor, shape)
+      .clickable { onClick() }
+      .padding(horizontal = 16.dp),
+    contentAlignment = Alignment.Center
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      CircularFlagIcon(code = item.code, modifier = Modifier.size(28.dp))
+
+      Spacer(modifier = Modifier.width(14.dp))
+
+      Text(
+        text = buildAnnotatedString {
+          withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = NumoDS.TextPrimary)) {
+            append(item.code)
+          }
+          withStyle(SpanStyle(fontWeight = FontWeight.Medium, color = NumoDS.TextSecondary)) {
+            append(" – ${item.name}")
+          }
+        },
+        fontSize = 14.5.sp,
+        modifier = Modifier.weight(1f)
+      )
+
+      NumoRadioIndicator(selected = isSelected)
+    }
+  }
+}
+
+@Composable
+private fun CircularFlagIcon(code: String, modifier: Modifier = Modifier) {
+  Canvas(
+    modifier = modifier
+      .clip(CircleShape)
+      .border(0.8.dp, Color(0x22000000), CircleShape)
+  ) {
+    val w = size.width
+    val h = size.height
+    when (code) {
+      "KES" -> {
+        drawRect(Color(0xFF000000), Offset.Zero, Size(w, h * 0.28f))
+        drawRect(Color(0xFFFFFFFF), Offset(0f, h * 0.28f), Size(w, h * 0.06f))
+        drawRect(Color(0xFFBB0000), Offset(0f, h * 0.34f), Size(w, h * 0.32f))
+        drawRect(Color(0xFFFFFFFF), Offset(0f, h * 0.66f), Size(w, h * 0.06f))
+        drawRect(Color(0xFF006600), Offset(0f, h * 0.72f), Size(w, h * 0.28f))
+        // Maasai shield center accent
+        drawOval(
+          color = Color(0xFF9E1B1B),
+          topLeft = Offset(w * 0.40f, h * 0.30f),
+          size = Size(w * 0.20f, h * 0.40f)
+        )
+        drawCircle(Color.White, radius = w * 0.045f, center = Offset(w * 0.50f, h * 0.50f))
+      }
+      "USD" -> {
+        val stripeH = h / 7f
+        for (i in 0 until 7) {
+          drawRect(
+            color = if (i % 2 == 0) Color(0xFFB22234) else Color.White,
+            topLeft = Offset(0f, i * stripeH),
+            size = Size(w, stripeH + 0.5f)
+          )
+        }
+        drawRect(Color(0xFF3C3B6E), Offset.Zero, Size(w * 0.50f, h * 0.54f))
+        for (r in 0..2) {
+          for (c in 0..2) {
+            drawCircle(
+              color = Color.White,
+              radius = w * 0.025f,
+              center = Offset(w * (0.11f + c * 0.14f), h * (0.13f + r * 0.14f))
             )
           }
         }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 2. Active Selected Currency Glass Card
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-              elevation = 6.dp,
-              shape = RoundedCornerShape(20.dp),
-              spotColor = NumoDarkForestGreen.copy(alpha = 0.08f),
-              ambientColor = NumoDarkForestGreen.copy(alpha = 0.03f)
-            )
-            .clip(RoundedCornerShape(20.dp))
-            .background(NumoGlassCardBg)
-            .border(1.5.dp, NumoGlassCardBorder, RoundedCornerShape(20.dp))
-            .padding(16.dp)
-            .testTag("card_selected_currency")
-        ) {
-          Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-              ) {
-                // Circular Flag Badge
-                Box(
-                  modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .border(1.dp, NumoElementsCorners, CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Text(
-                    text = activeCurrency.flagEmoji,
-                    fontSize = 24.sp
-                  )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                  Text(
-                    text = activeCurrency.code,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    color = NumoDarkForestGreen
-                  )
-                  Text(
-                    text = activeCurrency.name,
-                    fontSize = 12.sp,
-                    color = NumoSlateGreen,
-                    fontFamily = FontFamily.SansSerif
-                  )
-                }
-              }
-
-              // "Edit" Pill Button
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(8.dp))
-                  .background(NumoDarkForestGreen)
-                  .bouncyClickable {
-                    onContinue(selectedCode)
-                  }
-                  .padding(horizontal = 14.dp, vertical = 6.dp)
-                  .testTag("btn_currency_edit"),
-                contentAlignment = Alignment.Center
-              ) {
-                Text(
-                  text = "Edit",
-                  fontSize = 11.5.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = Color.White
-                )
-              }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Subtitle Exchange Rate
-            val rateText = when (selectedCode) {
-              "USD" -> "1 USD = 0.92 EUR"
-              "KES" -> "1 KES = 0.0077 USD"
-              "EUR" -> "1 EUR = 1.09 USD"
-              "GBP" -> "1 GBP = 1.28 USD"
-              else -> "1 $selectedCode = 0.92 EUR"
-            }
-            Text(
-              text = rateText,
-              fontSize = 11.5.sp,
-              color = NumoSlateGreen.copy(alpha = 0.85f),
-              fontFamily = FontFamily.SansSerif,
-              modifier = Modifier.padding(start = 2.dp)
-            )
-          }
+      }
+      "EUR" -> {
+        drawRect(Color(0xFF003399), Offset.Zero, Size(w, h))
+        val cx = w * 0.5f
+        val cy = h * 0.5f
+        val ringR = w * 0.30f
+        for (i in 0 until 12) {
+          val angle = (i * 30.0) * Math.PI / 180.0
+          val sx = cx + (ringR * kotlin.math.cos(angle)).toFloat()
+          val sy = cy + (ringR * kotlin.math.sin(angle)).toFloat()
+          drawCircle(Color(0xFFFFCC00), radius = w * 0.04f, center = Offset(sx, sy))
         }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 3. Search Bar
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color.White.copy(alpha = 0.55f))
-            .border(1.dp, NumoElementsCorners, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp),
-          contentAlignment = Alignment.CenterStart
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Icon(
-              imageVector = Icons.Default.Search,
-              contentDescription = "Search",
-              tint = NumoSlateGreen,
-              modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Box(modifier = Modifier.weight(1f)) {
-              if (searchQuery.isEmpty()) {
-                Text(
-                  text = "Search country or currency code",
-                  fontSize = 13.sp,
-                  color = NumoInputPlaceholder,
-                  fontFamily = FontFamily.SansSerif
-                )
-              }
-              BasicTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("input_search_currency"),
-                textStyle = TextStyle(
-                  fontSize = 13.5.sp,
-                  color = Color(0xFF0F172A),
-                  fontWeight = FontWeight.Normal
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(NumoDarkForestGreen)
-              )
-            }
-          }
+      }
+      "GBP" -> {
+        drawRect(Color(0xFF012169), Offset.Zero, Size(w, h))
+        drawLine(Color.White, Offset(0f, 0f), Offset(w, h), strokeWidth = w * 0.16f)
+        drawLine(Color.White, Offset(w, 0f), Offset(0f, h), strokeWidth = w * 0.16f)
+        drawLine(Color(0xFFC8102E), Offset(0f, 0f), Offset(w, h), strokeWidth = w * 0.07f)
+        drawLine(Color(0xFFC8102E), Offset(w, 0f), Offset(0f, h), strokeWidth = w * 0.07f)
+        drawRect(Color.White, Offset(w * 0.38f, 0f), Size(w * 0.24f, h))
+        drawRect(Color.White, Offset(0f, h * 0.38f), Size(w, h * 0.24f))
+        drawRect(Color(0xFFC8102E), Offset(w * 0.43f, 0f), Size(w * 0.14f, h))
+        drawRect(Color(0xFFC8102E), Offset(0f, h * 0.43f), Size(w, h * 0.14f))
+      }
+      "TZS" -> {
+        drawRect(Color(0xFF1EB53A), Offset.Zero, Size(w, h))
+        val blueTriangle = Path().apply {
+          moveTo(w, 0f)
+          lineTo(w, h)
+          lineTo(0f, h)
+          close()
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 4. Currency List with flags, bold codes, and checkmarks
-        LazyColumn(
-          modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f)
-        ) {
-          items(displayCurrencies, key = { it.code }) { item ->
-            val isSelected = item.code == selectedCode
-
-            Column(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                  selectedCode = item.code
-                }
-                .testTag("currency_row_${item.code}")
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(vertical = 10.dp, horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  // Circular Flag Icon
-                  Box(
-                    modifier = Modifier
-                      .size(28.dp)
-                      .clip(CircleShape)
-                      .background(Color.White)
-                      .border(0.5.dp, NumoElementsCorners, CircleShape),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Text(
-                      text = item.flagEmoji,
-                      fontSize = 18.sp
-                    )
-                  }
-
-                  Spacer(modifier = Modifier.width(14.dp))
-
-                  Text(
-                    text = item.code,
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.SansSerif,
-                    color = NumoDarkForestGreen
-                  )
-                }
-
-                // Checkmark indicator
-                Icon(
-                  imageVector = Icons.Default.Check,
-                  contentDescription = "Selected",
-                  tint = if (isSelected) NumoDarkForestGreen else NumoSlateGreen.copy(alpha = 0.5f),
-                  modifier = Modifier.size(16.dp)
-                )
-              }
-
-              // Subtle horizontal divider line
-              HorizontalDivider(
-                color = Color(0xFFD8EFE8),
-                thickness = 1.dp
-              )
-            }
-          }
+        drawPath(blueTriangle, Color(0xFF00A3DD))
+        drawLine(Color(0xFFFCD116), Offset(0f, h), Offset(w, 0f), strokeWidth = w * 0.30f)
+        drawLine(Color.Black, Offset(0f, h), Offset(w, 0f), strokeWidth = w * 0.19f)
+      }
+      "UGX" -> {
+        val stripeH = h / 6f
+        val ugColors = listOf(
+          Color.Black,
+          Color(0xFFFCDC04),
+          Color(0xFFD90000),
+          Color.Black,
+          Color(0xFFFCDC04),
+          Color(0xFFD90000)
+        )
+        ugColors.forEachIndexed { idx, col ->
+          drawRect(col, Offset(0f, idx * stripeH), Size(w, stripeH + 0.5f))
         }
+        drawCircle(Color.White, radius = w * 0.17f, center = Offset(w * 0.5f, h * 0.5f))
+        drawCircle(Color(0xFFD90000), radius = w * 0.06f, center = Offset(w * 0.5f, h * 0.48f))
       }
     }
   }
