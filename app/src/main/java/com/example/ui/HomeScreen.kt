@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -49,9 +51,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.NumoFinancialEngine
 import com.example.ui.components.NumoClayHeroCard
 import com.example.ui.components.NumoClayIconBadge
 import com.example.ui.components.NumoDS
@@ -61,16 +65,29 @@ import com.example.ui.components.NumoScreenBackground
 @Composable
 fun HomeScreen(
   userName: String = "Ayesha",
-  currency: String = "KES",
+  currency: String = NumoFinancialEngine.currency,
   onAddTransaction: () -> Unit = {},
+  onAddTransactionTab: (String) -> Unit = { onAddTransaction() },
   onPayBill: () -> Unit = {},
   onOpenTransactions: () -> Unit = {},
+  onOpenTransactionsWithType: (String) -> Unit = { onOpenTransactions() },
   onOpenBudget: () -> Unit = {},
   onOpenProfile: () -> Unit = {},
   onOpenInsights: () -> Unit = {},
   onOpenHeyNumo: () -> Unit = {}
 ) {
   val firstName = userName.trim().substringBefore(" ").ifBlank { "Ayesha" }
+  val isVisible = NumoFinancialEngine.isBalanceVisible
+  val availableCash = NumoFinancialEngine.availableCash
+  val totalReserved = NumoFinancialEngine.bills.filter { !it.isPaid }.sumOf { it.remainingAmount }
+  val totalBalance = availableCash + totalReserved
+  val monthlyIncome = NumoFinancialEngine.monthlyIncomeTotal
+  val monthlyExpenses = NumoFinancialEngine.monthlyExpenseTotal
+  val netCashFlow = NumoFinancialEngine.netCashFlow
+  val budgetPercent = NumoFinancialEngine.budgetConsumptionPercent
+  val netWorth = NumoFinancialEngine.totalNetWorth
+
+  fun maskAmount(formatted: String): String = if (isVisible) formatted else "$currency ••••••"
 
   NumoScreenBackground {
     Column(
@@ -203,24 +220,27 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = "Available Cash,",
+              text = "Available Cash",
               fontSize = 14.sp,
               fontWeight = FontWeight.Medium,
               color = Color.White.copy(alpha = 0.9f)
             )
             Icon(
-              imageVector = Icons.Outlined.Visibility,
-              contentDescription = "Toggle Balance",
+              imageVector = if (isVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+              contentDescription = "Toggle Balance Visibility",
               tint = Color.White.copy(alpha = 0.9f),
-              modifier = Modifier.size(20.dp)
+              modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .clickable { NumoFinancialEngine.isBalanceVisible = !isVisible }
             )
           }
 
           Spacer(modifier = Modifier.height(6.dp))
 
           Text(
-            text = "$currency 38,000",
-            fontSize = 30.sp,
+            text = maskAmount(NumoFinancialEngine.formatKes(availableCash)),
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             letterSpacing = (-0.5).sp
@@ -229,7 +249,7 @@ fun HomeScreen(
           Spacer(modifier = Modifier.height(8.dp))
 
           Text(
-            text = "Total: $currency 50,000  •  Reserved: $currency 12,000",
+            text = "Total: ${maskAmount(NumoFinancialEngine.formatKes(totalBalance, false))}  •  Reserved: ${maskAmount(NumoFinancialEngine.formatKes(totalReserved, false))}",
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = Color.White.copy(alpha = 0.88f)
@@ -249,7 +269,7 @@ fun HomeScreen(
           label = "Add\nTransaction",
           topColor = Color(0xFF4ADE80),
           bottomColor = Color(0xFF15803D),
-          onClick = onAddTransaction,
+          onClick = { onAddTransactionTab("expense") },
           modifier = Modifier.weight(1f)
         )
         HomeQuickActionTile(
@@ -257,7 +277,7 @@ fun HomeScreen(
           label = "Transfer",
           topColor = NumoDS.Cyan,
           bottomColor = Color(0xFF0D9488),
-          onClick = onAddTransaction,
+          onClick = { onAddTransactionTab("transfer") },
           modifier = Modifier.weight(1f)
         )
         HomeQuickActionTile(
@@ -265,7 +285,7 @@ fun HomeScreen(
           label = "Receive\nIncome",
           topColor = Color(0xFFFB923C),
           bottomColor = Color(0xFFDC2626),
-          onClick = onAddTransaction,
+          onClick = { onAddTransactionTab("income") },
           modifier = Modifier.weight(1f)
         )
         HomeQuickActionTile(
@@ -292,13 +312,26 @@ fun HomeScreen(
           fontWeight = FontWeight.Bold,
           color = NumoDS.TextPrimary
         )
-        Text(
-          text = "This Month >",
-          fontSize = 12.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = NumoDS.TextSecondary,
-          modifier = Modifier.clickable { onOpenTransactions() }
-        )
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onOpenTransactionsWithType("all") }
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+          Text(
+            text = "View All",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = NumoDS.TextSecondary
+          )
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = NumoDS.TextSecondary,
+            modifier = Modifier.size(16.dp)
+          )
+        }
       }
 
       Spacer(modifier = Modifier.height(10.dp))
@@ -306,7 +339,7 @@ fun HomeScreen(
       NumoNeumorphicCard(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 18.dp,
-        onClick = onOpenTransactions
+        onClick = { onOpenTransactionsWithType("all") }
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
           Row(
@@ -314,11 +347,15 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Row(
-              modifier = Modifier.weight(1f),
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onOpenTransactionsWithType("income") }
+                .padding(4.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
               NumoClayIconBadge(
-                icon = Icons.Default.ArrowDownward,
+                icon = Icons.Default.ArrowUpward,
                 topColor = Color(0xFF4ADE80),
                 bottomColor = NumoDS.SuccessGreen,
                 size = 30.dp,
@@ -327,162 +364,222 @@ fun HomeScreen(
               Spacer(modifier = Modifier.width(8.dp))
               Column {
                 Text(
+                  text = maskAmount(NumoFinancialEngine.formatKes(monthlyIncome, false)),
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = NumoDS.SuccessGreen,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+                Text(
                   text = "Income",
                   fontSize = 11.sp,
                   fontWeight = FontWeight.Medium,
                   color = NumoDS.TextSecondary
                 )
-                Text(
-                  text = "$currency 75,000",
-                  fontSize = 13.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = NumoDS.SuccessGreen
-                )
               }
             }
 
-            Column(
-              modifier = Modifier.weight(1f),
-              horizontalAlignment = Alignment.End
-            ) {
-              Text(
-                text = "Expenses",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = NumoDS.TextSecondary
-              )
-              Text(
-                text = "$currency 51,400",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = NumoDS.TransportBlue
-              )
-            }
-          }
-
-          HorizontalDivider(
-            modifier = Modifier.padding(vertical = 10.dp),
-            color = NumoDS.TrackBg
-          )
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
             Row(
-              modifier = Modifier.weight(1f),
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onOpenTransactionsWithType("expense") }
+                .padding(4.dp),
+              horizontalArrangement = Arrangement.End,
               verticalAlignment = Alignment.CenterVertically
             ) {
               NumoClayIconBadge(
-                icon = Icons.Default.ArrowUpward,
+                icon = Icons.Default.ArrowDownward,
                 topColor = Color(0xFFF43F5E),
                 bottomColor = NumoDS.ExpenseRed,
                 size = 30.dp,
                 iconSize = 16.dp
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text(
-                text = "$currency 52,000",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = NumoDS.ExpenseRed
-              )
-            }
-
-            Column(
-              modifier = Modifier.weight(1f),
-              horizontalAlignment = Alignment.End
-            ) {
-              Text(
-                text = "Net",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = NumoDS.TextSecondary
-              )
-              Text(
-                text = "$currency 25,000",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = NumoDS.TransportBlue
-              )
+              Column(horizontalAlignment = Alignment.End) {
+                Text(
+                  text = maskAmount(NumoFinancialEngine.formatKes(monthlyExpenses, false)),
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = NumoDS.ExpenseRed,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                  text = "Expenses",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = NumoDS.TextSecondary
+                )
+              }
             }
           }
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          // Proportional Comparison Bar
+          val totalFlow = (monthlyIncome + monthlyExpenses).coerceAtLeast(1.0)
+          val incomeFraction = (monthlyIncome / totalFlow).toFloat().coerceIn(0.05f, 0.95f)
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(8.dp)
+              .clip(RoundedCornerShape(4.dp))
+              .background(NumoDS.ExpenseRed.copy(alpha = 0.78f))
+          ) {
+            Box(
+              modifier = Modifier
+                .fillMaxWidth(incomeFraction)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(NumoDS.SuccessGreen)
+            )
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          val netPrefix = if (netCashFlow < 0) "-" else ""
+          val netAbs = kotlin.math.abs(netCashFlow)
+          Text(
+            text = "Net: $netPrefix${maskAmount(NumoFinancialEngine.formatKes(netAbs, false))}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (netCashFlow >= 0) NumoDS.TextPrimary else NumoDS.ExpenseRed,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+          )
         }
       }
 
       Spacer(modifier = Modifier.height(18.dp))
 
-      // 5. Budget Health Section
-      Text(
-        text = "Budget Health",
-        fontSize = 16.sp,
-        fontWeight = FontWeight.Bold,
-        color = NumoDS.TextPrimary
-      )
+      // 5. Budget Health & Net Worth Side-by-Side Cards
+      val budgetStatus = when {
+        budgetPercent >= 100 -> "Over Budget"
+        budgetPercent >= 80 -> "Nearing Limit"
+        else -> "On Track"
+      }
+      val budgetRingColor = when {
+        budgetPercent >= 100 -> NumoDS.ExpenseRed
+        budgetPercent >= 80 -> NumoDS.DuneOchre
+        else -> NumoDS.SuccessGreen
+      }
+      val sweepFraction = (budgetPercent.coerceIn(0, 100) / 100f) * 360f
 
-      Spacer(modifier = Modifier.height(10.dp))
-
-      NumoNeumorphicCard(
+      Row(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp,
-        onClick = onOpenBudget
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
       ) {
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-          verticalAlignment = Alignment.CenterVertically
+        NumoNeumorphicCard(
+          modifier = Modifier.weight(1f),
+          cornerRadius = 20.dp,
+          onClick = onOpenBudget
         ) {
-          Box(
-            modifier = Modifier.size(90.dp),
-            contentAlignment = Alignment.Center
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
           ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-              val stroke = 12.dp.toPx()
-              drawArc(
-                color = NumoDS.TrackBg,
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
-              )
-              drawArc(
-                brush = Brush.sweepGradient(
-                  colors = listOf(
-                    NumoDS.HeroTealMid,
-                    NumoDS.Turquoise,
-                    NumoDS.DuneOchre,
-                    NumoDS.HeroTealMid
-                  )
-                ),
-                startAngle = 140f,
-                sweepAngle = 280f,
-                useCenter = false,
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
+            Text(
+              text = "Budget Health",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold,
+              color = NumoDS.TextPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+              modifier = Modifier.size(74.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = 9.dp.toPx()
+                drawArc(
+                  color = NumoDS.TrackBg,
+                  startAngle = 0f,
+                  sweepAngle = 360f,
+                  useCenter = false,
+                  style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+                drawArc(
+                  brush = Brush.sweepGradient(
+                    colors = listOf(
+                      NumoDS.HeroTealMid,
+                      budgetRingColor,
+                      NumoDS.DuneOchre,
+                      NumoDS.HeroTealMid
+                    )
+                  ),
+                  startAngle = -90f,
+                  sweepAngle = sweepFraction,
+                  useCenter = false,
+                  style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+              }
+              Text(
+                text = "$budgetPercent%",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = NumoDS.TextPrimary
               )
             }
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-              text = "78%",
-              fontSize = 20.sp,
+              text = budgetStatus,
+              fontSize = 13.sp,
               fontWeight = FontWeight.Bold,
-              color = NumoDS.TextPrimary
+              color = budgetRingColor
+            )
+            val remaining = NumoFinancialEngine.totalRemaining
+            Text(
+              text = if (budgetPercent >= 100) "Review limits" else "${maskAmount(NumoFinancialEngine.formatKes(remaining, false))} left",
+              fontSize = 11.sp,
+              color = NumoDS.TextSecondary,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
             )
           }
+        }
 
-          Spacer(modifier = Modifier.width(20.dp))
-
-          Column {
+        NumoNeumorphicCard(
+          modifier = Modifier.weight(1f),
+          cornerRadius = 20.dp,
+          onClick = onOpenInsights
+        ) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
             Text(
-              text = "On Track",
-              fontSize = 16.sp,
+              text = "Net Worth",
+              fontSize = 13.sp,
               fontWeight = FontWeight.Bold,
               color = NumoDS.TextPrimary
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+            NumoClayIconBadge(
+              icon = Icons.Default.AccountBalanceWallet,
+              topColor = Color(0xFF4ADE80),
+              bottomColor = NumoDS.TealPrimary,
+              size = 54.dp,
+              iconSize = 26.dp
+            )
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
-              text = "$currency 6,000 left",
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Medium,
+              text = maskAmount(NumoFinancialEngine.formatKes(netWorth, false)),
+              fontSize = 17.sp,
+              fontWeight = FontWeight.ExtraBold,
+              color = NumoDS.TextPrimary,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+              text = "Cash + Investments",
+              fontSize = 11.sp,
               color = NumoDS.TextSecondary
             )
           }

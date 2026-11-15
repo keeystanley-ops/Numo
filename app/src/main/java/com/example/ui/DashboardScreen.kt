@@ -138,6 +138,30 @@ fun DashboardScreen(
     if (userEmail.contains("@")) userEmail else "ayesha@numo.com"
   }
 
+  var addTransactionTab by remember { mutableStateOf("expense") }
+  val pageHistory = remember { mutableStateListOf<NumoDashboardPage>() }
+
+  var txFilterTab by remember { mutableIntStateOf(0) }
+  var txSearchQuery by remember { mutableStateOf("") }
+  var txSortOption by remember { mutableStateOf("Newest First") }
+  var txAccountFilter by remember { mutableStateOf("All") }
+  var txDateFilter by remember { mutableStateOf("All") }
+
+  fun navigateTo(target: NumoDashboardPage) {
+    if (currentPage != target) {
+      pageHistory.add(currentPage)
+      currentPage = target
+    }
+  }
+
+  fun navigateBack(fallback: NumoDashboardPage = NumoDashboardPage.HOME) {
+    currentPage = if (pageHistory.isNotEmpty()) {
+      pageHistory.removeAt(pageHistory.lastIndex)
+    } else {
+      fallback
+    }
+  }
+
   val selectedNavTab = when (currentPage) {
     NumoDashboardPage.HOME,
     NumoDashboardPage.UPCOMING_BILLS,
@@ -168,21 +192,21 @@ fun DashboardScreen(
   )
 
   BackHandler(enabled = currentPage != NumoDashboardPage.HOME) {
-    currentPage = when (currentPage) {
+    when (currentPage) {
       NumoDashboardPage.UPCOMING_BILLS,
-      NumoDashboardPage.ADD_TRANSACTION -> NumoDashboardPage.HOME
-      NumoDashboardPage.SPENDING_INSIGHTS -> NumoDashboardPage.ANALYTICS
-      NumoDashboardPage.TRANSACTIONS -> NumoDashboardPage.BUDGET_CONTROL
+      NumoDashboardPage.ADD_TRANSACTION,
+      NumoDashboardPage.TRANSACTIONS -> navigateBack(NumoDashboardPage.HOME)
+      NumoDashboardPage.SPENDING_INSIGHTS -> currentPage = NumoDashboardPage.ANALYTICS
       NumoDashboardPage.SAVINGS_GOALS,
-      NumoDashboardPage.DEBT_MANAGEMENT -> NumoDashboardPage.FINANCIAL_GOALS
+      NumoDashboardPage.DEBT_MANAGEMENT -> currentPage = NumoDashboardPage.FINANCIAL_GOALS
       NumoDashboardPage.SETTINGS,
       NumoDashboardPage.PERSONAL_INFORMATION,
       NumoDashboardPage.LINKED_ACCOUNTS,
       NumoDashboardPage.SECURITY_PRIVACY,
       NumoDashboardPage.NOTIFICATIONS,
       NumoDashboardPage.CATEGORIES,
-      NumoDashboardPage.HELP_SUPPORT -> NumoDashboardPage.PROFILE
-      else -> NumoDashboardPage.HOME
+      NumoDashboardPage.HELP_SUPPORT -> currentPage = NumoDashboardPage.PROFILE
+      else -> currentPage = NumoDashboardPage.HOME
     }
   }
 
@@ -196,16 +220,35 @@ fun DashboardScreen(
         NumoDashboardPage.HOME -> HomeScreen(
           userName = displayName,
           currency = userCurrency,
-          onAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
-          onPayBill = { currentPage = NumoDashboardPage.UPCOMING_BILLS },
-          onOpenTransactions = { currentPage = NumoDashboardPage.TRANSACTIONS },
-          onOpenBudget = { currentPage = NumoDashboardPage.BUDGET_CONTROL },
-          onOpenProfile = { currentPage = NumoDashboardPage.PROFILE },
-          onOpenInsights = { currentPage = NumoDashboardPage.SPENDING_INSIGHTS },
+          onAddTransaction = {
+            addTransactionTab = "expense"
+            navigateTo(NumoDashboardPage.ADD_TRANSACTION)
+          },
+          onAddTransactionTab = { tab ->
+            addTransactionTab = tab
+            navigateTo(NumoDashboardPage.ADD_TRANSACTION)
+          },
+          onPayBill = { navigateTo(NumoDashboardPage.UPCOMING_BILLS) },
+          onOpenTransactions = {
+            txFilterTab = 0
+            navigateTo(NumoDashboardPage.TRANSACTIONS)
+          },
+          onOpenTransactionsWithType = { typeKey ->
+            txFilterTab = when (typeKey) {
+              "income" -> 1
+              "expense" -> 2
+              "transfer" -> 3
+              else -> 0
+            }
+            navigateTo(NumoDashboardPage.TRANSACTIONS)
+          },
+          onOpenBudget = { navigateTo(NumoDashboardPage.BUDGET_CONTROL) },
+          onOpenProfile = { navigateTo(NumoDashboardPage.PROFILE) },
+          onOpenInsights = { navigateTo(NumoDashboardPage.SPENDING_INSIGHTS) },
           onOpenHeyNumo = {
             heyNumoInitialScreen = HeyNumoSubScreen.HOME
             heyNumoStartListening = false
-            currentPage = NumoDashboardPage.HEY_NUMO
+            navigateTo(NumoDashboardPage.HEY_NUMO)
           }
         )
 
@@ -218,15 +261,33 @@ fun DashboardScreen(
 
         NumoDashboardPage.BUDGET_CONTROL -> BudgetScreen(
           currency = userCurrency,
-          onOpenTransactions = { currentPage = NumoDashboardPage.TRANSACTIONS },
-          onOpenAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
+          onOpenTransactions = {
+            txFilterTab = 0
+            navigateTo(NumoDashboardPage.TRANSACTIONS)
+          },
+          onOpenAddTransaction = {
+            addTransactionTab = "expense"
+            navigateTo(NumoDashboardPage.ADD_TRANSACTION)
+          },
           onBack = { currentPage = NumoDashboardPage.HOME }
         )
 
         NumoDashboardPage.TRANSACTIONS -> TransactionsScreen(
-          currency = userCurrency,
-          onAddTransaction = { currentPage = NumoDashboardPage.ADD_TRANSACTION },
-          onBack = { currentPage = NumoDashboardPage.BUDGET_CONTROL }
+          selectedFilterTab = txFilterTab,
+          onFilterTabChange = { txFilterTab = it },
+          searchQuery = txSearchQuery,
+          onSearchQueryChange = { txSearchQuery = it },
+          sortOption = txSortOption,
+          onSortOptionChange = { txSortOption = it },
+          accountFilter = txAccountFilter,
+          onAccountFilterChange = { txAccountFilter = it },
+          dateFilter = txDateFilter,
+          onDateFilterChange = { txDateFilter = it },
+          onAddTransactionTab = { tab ->
+            addTransactionTab = tab
+            navigateTo(NumoDashboardPage.ADD_TRANSACTION)
+          },
+          onBack = { navigateBack(NumoDashboardPage.HOME) }
         )
 
         NumoDashboardPage.FINANCIAL_GOALS -> GoalsScreen(
@@ -237,8 +298,7 @@ fun DashboardScreen(
         )
 
         NumoDashboardPage.UPCOMING_BILLS -> UpcomingBillsScreen(
-          currency = userCurrency,
-          onBack = { currentPage = NumoDashboardPage.HOME }
+          onBack = { navigateBack(NumoDashboardPage.HOME) }
         )
 
         NumoDashboardPage.SAVINGS_GOALS -> SavingsGoalsScreen(
@@ -258,8 +318,10 @@ fun DashboardScreen(
 
         NumoDashboardPage.ADD_TRANSACTION -> AddTransactionScreen(
           currency = userCurrency,
-          onCancel = { currentPage = NumoDashboardPage.HOME },
-          onSave = { currentPage = NumoDashboardPage.TRANSACTIONS }
+          initialTab = addTransactionTab,
+          onTabChanged = { addTransactionTab = it },
+          onBack = { navigateBack(NumoDashboardPage.HOME) },
+          onSaved = { navigateBack(NumoDashboardPage.HOME) }
         )
 
         NumoDashboardPage.PROFILE -> ProfileScreen(
