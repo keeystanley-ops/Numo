@@ -1,0 +1,48 @@
+:root {
+  --cream-top: #fef9ef;
+  --cream-bottom: #f7eedc;
+  --teal-light: #16bfa1;
+  --teal-dark: #007764;
+  --magenta: #d91b7a;
+  --ochre: #e0911f;
+  --text-primary: #2d1f14;
+  --text-secondary: #5c4636;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(255, 255, 255, 0.95);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.numo-card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: 22px;
+  box-shadow: 0 12px 30px rgba(45, 31, 20, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.numo-btn-primary {
+  background: linear-gradient(135deg, var(--teal-light), var(--teal-dark));
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 119, 100, 0.25);
+}
+
+.numo-btn-primary:hover {
+  opacity: 0.94;
+}
