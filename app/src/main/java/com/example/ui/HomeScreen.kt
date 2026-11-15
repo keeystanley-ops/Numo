@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Notifications
@@ -65,7 +67,8 @@ fun HomeScreen(
   onOpenTransactions: () -> Unit = {},
   onOpenBudget: () -> Unit = {},
   onOpenProfile: () -> Unit = {},
-  onOpenInsights: () -> Unit = {}
+  onOpenInsights: () -> Unit = {},
+  onOpenHeyNumo: () -> Unit = {}
 ) {
   val firstName = userName.trim().substringBefore(" ").ifBlank { "Ayesha" }
 
@@ -102,7 +105,44 @@ fun HomeScreen(
           )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          Row(
+            modifier = Modifier
+              .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = NumoDS.TealPrimary.copy(alpha = 0.25f),
+                spotColor = NumoDS.TealPrimary.copy(alpha = 0.25f)
+              )
+              .clip(RoundedCornerShape(20.dp))
+              .background(
+                Brush.horizontalGradient(
+                  listOf(NumoDS.TealLight, NumoDS.TealDark)
+                )
+              )
+              .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+              .clickable { onOpenHeyNumo() }
+              .padding(horizontal = 11.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Default.Mic,
+              contentDescription = "Hey Numo Voice Assistant",
+              tint = Color.White,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = "Hey Numo",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = Color.White
+            )
+          }
+
           Box(
             modifier = Modifier
               .size(40.dp)

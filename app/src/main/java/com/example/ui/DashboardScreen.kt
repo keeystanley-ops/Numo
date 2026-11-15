@@ -6,11 +6,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.ui.components.NumoBottomNavBar
 import com.example.ui.components.NumoNavTab
 import com.example.ui.profile.CategoriesScreen
@@ -19,6 +25,10 @@ import com.example.ui.profile.LinkedAccountsScreen
 import com.example.ui.profile.NotificationsScreen
 import com.example.ui.profile.PersonalInformationScreen
 import com.example.ui.profile.SecurityPrivacyScreen
+import com.example.ui.voice.HeyNumoHost
+import com.example.ui.voice.HeyNumoSubScreen
+import com.example.voice.HeyNumoSettings
+import com.example.voice.NumoVoiceAudioManager
 
 private enum class NumoDashboardPage {
   HOME,
@@ -38,7 +48,8 @@ private enum class NumoDashboardPage {
   SECURITY_PRIVACY,
   NOTIFICATIONS,
   CATEGORIES,
-  HELP_SUPPORT
+  HELP_SUPPORT,
+  HEY_NUMO
 }
 
 @Composable
@@ -49,7 +60,64 @@ fun DashboardScreen(
   customAccounts: List<Pair<String, String>> = emptyList(),
   onSignOut: () -> Unit = {}
 ) {
+  val context = LocalContext.current
+  val lifecycleOwner = LocalLifecycleOwner.current
   var currentPage by remember { mutableStateOf(NumoDashboardPage.HOME) }
+  var heyNumoInitialScreen by remember { mutableStateOf(HeyNumoSubScreen.HOME) }
+  var heyNumoStartListening by remember { mutableStateOf(false) }
+
+  LaunchedEffect(Unit) {
+    HeyNumoSettings.init(context)
+  }
+
+  val wakeWordAudioManager = remember { NumoVoiceAudioManager(context) }
+
+  DisposableEffect(wakeWordAudioManager) {
+    wakeWordAudioManager.onWakeWordDetected = {
+      heyNumoInitialScreen = HeyNumoSubScreen.LISTENING
+      heyNumoStartListening = true
+      currentPage = NumoDashboardPage.HEY_NUMO
+    }
+    onDispose {
+      wakeWordAudioManager.destroy()
+    }
+  }
+
+  LaunchedEffect(currentPage, HeyNumoSettings.wakeWordEnabled) {
+    if (
+      currentPage != NumoDashboardPage.HEY_NUMO &&
+      HeyNumoSettings.wakeWordEnabled &&
+      wakeWordAudioManager.hasRecordAudioPermission()
+    ) {
+      wakeWordAudioManager.startWakeWordListening()
+    } else {
+      wakeWordAudioManager.stopWakeWordListening()
+    }
+  }
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      when (event) {
+        Lifecycle.Event.ON_RESUME -> {
+          if (
+            currentPage != NumoDashboardPage.HEY_NUMO &&
+            HeyNumoSettings.wakeWordEnabled &&
+            wakeWordAudioManager.hasRecordAudioPermission()
+          ) {
+            wakeWordAudioManager.startWakeWordListening()
+          }
+        }
+        Lifecycle.Event.ON_PAUSE -> {
+          wakeWordAudioManager.stopWakeWordListening()
+        }
+        else -> Unit
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
+  }
 
   val displayName = remember(userEmail) {
     if (userEmail.contains("@")) {
@@ -72,7 +140,8 @@ fun DashboardScreen(
 
   val selectedNavTab = when (currentPage) {
     NumoDashboardPage.HOME,
-    NumoDashboardPage.UPCOMING_BILLS -> NumoNavTab.HOME
+    NumoDashboardPage.UPCOMING_BILLS,
+    NumoDashboardPage.HEY_NUMO -> NumoNavTab.HOME
     NumoDashboardPage.ANALYTICS,
     NumoDashboardPage.SPENDING_INSIGHTS -> NumoNavTab.ANALYTICS
     NumoDashboardPage.BUDGET_CONTROL,
@@ -94,7 +163,8 @@ fun DashboardScreen(
   val showBottomBar = currentPage !in setOf(
     NumoDashboardPage.PERSONAL_INFORMATION,
     NumoDashboardPage.LINKED_ACCOUNTS,
-    NumoDashboardPage.SECURITY_PRIVACY
+    NumoDashboardPage.SECURITY_PRIVACY,
+    NumoDashboardPage.HEY_NUMO
   )
 
   BackHandler(enabled = currentPage != NumoDashboardPage.HOME) {
@@ -131,7 +201,12 @@ fun DashboardScreen(
           onOpenTransactions = { currentPage = NumoDashboardPage.TRANSACTIONS },
           onOpenBudget = { currentPage = NumoDashboardPage.BUDGET_CONTROL },
           onOpenProfile = { currentPage = NumoDashboardPage.PROFILE },
-          onOpenInsights = { currentPage = NumoDashboardPage.SPENDING_INSIGHTS }
+          onOpenInsights = { currentPage = NumoDashboardPage.SPENDING_INSIGHTS },
+          onOpenHeyNumo = {
+            heyNumoInitialScreen = HeyNumoSubScreen.HOME
+            heyNumoStartListening = false
+            currentPage = NumoDashboardPage.HEY_NUMO
+          }
         )
 
         NumoDashboardPage.ANALYTICS -> AnalyticsScreen(
@@ -232,6 +307,16 @@ fun DashboardScreen(
 
         NumoDashboardPage.HELP_SUPPORT -> HelpSupportScreen(
           onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.HEY_NUMO -> HeyNumoHost(
+          userName = displayName,
+          customAccounts = customAccounts,
+          initialScreen = heyNumoInitialScreen,
+          startListeningImmediately = heyNumoStartListening,
+          onOpenBudget = { currentPage = NumoDashboardPage.BUDGET_CONTROL },
+          onOpenNotifications = { currentPage = NumoDashboardPage.NOTIFICATIONS },
+          onBackToDashboard = { currentPage = NumoDashboardPage.HOME }
         )
       }
     }
