@@ -1,8 +1,13 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const {
+  handleHeyNumoChat,
+  handleConfirmAction,
+  hasConfiguredGeminiKey
+} = require('./server/geminiAssistant');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const APK_FALLBACK = path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
 
@@ -17,8 +22,75 @@ function getApkPath(requestedFile) {
   return null;
 }
 
-const server = http.createServer((req, res) => {
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+      if (data.length > 1024 * 1024) {
+        reject(new Error('Payload too large'));
+      }
+    });
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try {
+        resolve(JSON.parse(data));
+      } catch (e) {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  res.end(JSON.stringify(payload));
+}
+
+const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
+
+  if (url === '/api/hey-numo/health' && req.method === 'GET') {
+    return sendJson(res, 200, {
+      ok: true,
+      geminiConfigured: hasConfiguredGeminiKey()
+    });
+  }
+
+  if (url === '/api/hey-numo/chat' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const userId = req.headers['x-numo-user-id'] || body.userId;
+      const result = await handleHeyNumoChat({
+        userId,
+        message: body.message,
+        financialSnapshot: body.financialSnapshot,
+        resetHistory: Boolean(body.resetHistory)
+      });
+      return sendJson(res, result.status, result.body);
+    } catch (err) {
+      return sendJson(res, 400, { error: err.message || 'Invalid request' });
+    }
+  }
+
+  if (url === '/api/hey-numo/confirm' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const userId = req.headers['x-numo-user-id'] || body.userId;
+      const result = handleConfirmAction({
+        userId,
+        actionId: body.actionId,
+        confirmed: Boolean(body.confirmed)
+      });
+      return sendJson(res, result.status, result.body);
+    } catch (err) {
+      return sendJson(res, 400, { error: err.message || 'Invalid request' });
+    }
+  }
 
   if (url === '/numo-debug.apk' || url === '/new-debug.apk' || url === '/app-debug.apk' || url === '/download') {
     const filename = url === '/download' ? 'numo-debug.apk' : path.basename(url);

@@ -8,7 +8,10 @@ import java.util.UUID
 enum class PendingActionKind {
   TRANSACTION,
   PAY_BILL,
-  CONTRIBUTE_GOAL
+  CONTRIBUTE_GOAL,
+  CREATE_BUDGET,
+  UPDATE_TRANSACTION,
+  UPDATE_ASSET
 }
 
 data class PendingFinancialAction(
@@ -48,6 +51,41 @@ class NumoFinancialAssistantEngine(
   private var lastQueriedRemaining: Double? = null
   var activePendingAction: PendingFinancialAction? = null
     private set
+
+  suspend fun processUserQueryWithGemini(
+    userId: String,
+    rawQuery: String,
+    resetHistory: Boolean = false
+  ): AssistantReply {
+    val cleanQuery = rawQuery.trim()
+    if (cleanQuery.isEmpty()) {
+      return AssistantReply(
+        spokenText = "I didn't catch anything. Please try speaking or typing your question.",
+        displayText = "I didn't catch anything. Please try speaking or typing your question."
+      )
+    }
+
+    return when (val res = GeminiHeyNumoClient.sendChat(userId, cleanQuery, customAccounts, resetHistory)) {
+      is GeminiBackendResult.Success -> {
+        activePendingAction = res.pendingAction
+        AssistantReply(
+          spokenText = res.spokenText,
+          displayText = res.replyText,
+          pendingAction = res.pendingAction
+        )
+      }
+      is GeminiBackendResult.Failure -> {
+        if (res.backendReachable) {
+          AssistantReply(
+            spokenText = res.friendlyMessage,
+            displayText = res.friendlyMessage
+          )
+        } else {
+          processUserQuery(cleanQuery)
+        }
+      }
+    }
+  }
 
   private fun fmt(amount: Double): String {
     val nf = NumberFormat.getNumberInstance(Locale.US).apply {
@@ -284,6 +322,36 @@ class NumoFinancialAssistantEngine(
       }
       PendingActionKind.CONTRIBUTE_GOAL -> {
         NumoFinancialEngine.contributeToGoal(action.description, action.amount)
+      }
+      PendingActionKind.CREATE_BUDGET -> {
+        val catIdx = NumoFinancialEngine.categories.indexOfFirst {
+          it.name.contains(action.category, ignoreCase = true)
+        }
+        if (catIdx >= 0) {
+          val old = NumoFinancialEngine.categories[catIdx]
+          NumoFinancialEngine.categories[catIdx] = old.copy(limit = action.amount)
+        }
+      }
+      PendingActionKind.UPDATE_TRANSACTION -> {
+        val txIdx = NumoFinancialEngine.transactions.indexOfFirst {
+          action.description.contains(it.title, ignoreCase = true)
+        }
+        if (txIdx >= 0) {
+          val old = NumoFinancialEngine.transactions[txIdx]
+          NumoFinancialEngine.transactions[txIdx] = old.copy(
+            category = action.category.ifBlank { old.category },
+            amount = if (action.amount > 0.0) action.amount else old.amount
+          )
+        }
+      }
+      PendingActionKind.UPDATE_ASSET -> {
+        val hIdx = NumoFinancialEngine.investmentHoldings.indexOfFirst {
+          action.description.contains(it.name, ignoreCase = true)
+        }
+        if (hIdx >= 0) {
+          val old = NumoFinancialEngine.investmentHoldings[hIdx]
+          NumoFinancialEngine.investmentHoldings[hIdx] = old.copy(currentValuation = action.amount)
+        }
       }
     }
 

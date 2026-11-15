@@ -311,6 +311,7 @@ fun DashboardScreen(
 
         NumoDashboardPage.HEY_NUMO -> HeyNumoHost(
           userName = displayName,
+          userId = emailDisplay,
           customAccounts = customAccounts,
           initialScreen = heyNumoInitialScreen,
           startListeningImmediately = heyNumoStartListening,

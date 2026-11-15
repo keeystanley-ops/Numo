@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -21,12 +22,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.voice.GeminiHeyNumoClient
 import com.example.voice.HeyNumoMessage
 import com.example.voice.HeyNumoSettings
 import com.example.voice.NumoFinancialAssistantEngine
 import com.example.voice.NumoVoiceAudioManager
 import com.example.voice.PendingFinancialAction
 import com.example.voice.VoiceOrbState
+import kotlinx.coroutines.launch
 
 enum class HeyNumoSubScreen {
   LISTENING,
@@ -41,6 +44,7 @@ enum class HeyNumoSubScreen {
 @Composable
 fun HeyNumoHost(
   userName: String,
+  userId: String = userName,
   customAccounts: List<Pair<String, String>>,
   initialScreen: HeyNumoSubScreen = HeyNumoSubScreen.HOME,
   startListeningImmediately: Boolean = false,
@@ -51,6 +55,7 @@ fun HeyNumoHost(
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val lifecycleOwner = LocalLifecycleOwner.current
+  val coroutineScope = rememberCoroutineScope()
 
   LaunchedEffect(Unit) {
     HeyNumoSettings.init(context)
@@ -71,6 +76,7 @@ fun HeyNumoHost(
   var pendingStartVoiceAfterPermission by remember { mutableStateOf(false) }
 
   val messages = remember { mutableStateListOf<HeyNumoMessage>() }
+  var pendingResetHistory by remember { mutableStateOf(false) }
 
   fun pulseHaptic() {
     if (HeyNumoSettings.hapticFeedbackEnabled) {
@@ -84,24 +90,34 @@ fun HeyNumoHost(
 
     HeyNumoSettings.recordRecentPrompt(clean)
     messages.add(HeyNumoMessage(isUser = true, text = clean))
-
-    val reply = engine.processUserQuery(clean)
-    messages.add(
-      HeyNumoMessage(
-        isUser = false,
-        text = reply.displayText,
-        pendingAction = reply.pendingAction
-      )
-    )
+    orbState = VoiceOrbState.THINKING
 
     if (openChat) {
       currentScreen = HeyNumoSubScreen.CHAT
     }
 
-    if (HeyNumoSettings.voiceResponseEnabled) {
-      audioManager.speak(reply.spokenText)
-    } else {
-      orbState = VoiceOrbState.IDLE
+    val shouldReset = pendingResetHistory
+    pendingResetHistory = false
+
+    coroutineScope.launch {
+      val reply = engine.processUserQueryWithGemini(
+        userId = userId,
+        rawQuery = clean,
+        resetHistory = shouldReset
+      )
+      messages.add(
+        HeyNumoMessage(
+          isUser = false,
+          text = reply.displayText,
+          pendingAction = reply.pendingAction
+        )
+      )
+
+      if (HeyNumoSettings.voiceResponseEnabled) {
+        audioManager.speak(reply.spokenText)
+      } else {
+        orbState = VoiceOrbState.IDLE
+      }
     }
   }
 
@@ -267,6 +283,7 @@ fun HeyNumoHost(
           onSubmitPrompt = { prompt -> submitQuery(prompt, openChat = true) },
           onStartNewChat = {
             messages.clear()
+            pendingResetHistory = true
             currentScreen = HeyNumoSubScreen.CHAT
           },
           onOpenSettings = { showSettings = true },
@@ -299,6 +316,9 @@ fun HeyNumoHost(
             }
             val reply = engine.executePendingAction(action)
             messages.add(HeyNumoMessage(isUser = false, text = reply.displayText))
+            coroutineScope.launch {
+              GeminiHeyNumoClient.confirmAction(userId, action.id, confirmed = true)
+            }
             if (HeyNumoSettings.voiceResponseEnabled) {
               audioManager.speak(reply.spokenText)
             }
@@ -318,6 +338,9 @@ fun HeyNumoHost(
             }
             val reply = engine.cancelPendingAction(action)
             messages.add(HeyNumoMessage(isUser = false, text = reply.displayText))
+            coroutineScope.launch {
+              GeminiHeyNumoClient.confirmAction(userId, action.id, confirmed = false)
+            }
             if (HeyNumoSettings.voiceResponseEnabled) {
               audioManager.speak(reply.spokenText)
             }
@@ -349,6 +372,7 @@ fun HeyNumoHost(
       },
       onClearHistory = {
         messages.clear()
+        pendingResetHistory = true
       },
       onDismiss = { showSettings = false }
     )
