@@ -53,7 +53,13 @@ import com.example.ui.components.NumoScreenBackground
 fun ProfileScreen(
   userName: String = "Ayesha Wanjiru",
   userEmail: String = "ayesha@numo.com",
+  onOpenPersonalInfo: () -> Unit = {},
+  onOpenLinkedAccounts: () -> Unit = {},
+  onOpenSecurityPrivacy: () -> Unit = {},
+  onOpenNotifications: () -> Unit = {},
+  onOpenCategories: () -> Unit = {},
   onOpenSettings: () -> Unit = {},
+  onOpenHelpSupport: () -> Unit = {},
   onSignOut: () -> Unit = {}
 ) {
   NumoScreenBackground {
@@ -142,7 +148,7 @@ fun ProfileScreen(
         title = "Personal Information",
         topColor = NumoDS.HeroTealMid,
         bottomColor = NumoDS.HeroTealDark,
-        onClick = {}
+        onClick = onOpenPersonalInfo
       )
       Spacer(modifier = Modifier.height(8.dp))
 
@@ -151,7 +157,7 @@ fun ProfileScreen(
         title = "Linked Accounts",
         topColor = NumoDS.HeroTealMid,
         bottomColor = NumoDS.HeroTealDark,
-        onClick = {}
+        onClick = onOpenLinkedAccounts
       )
       Spacer(modifier = Modifier.height(8.dp))
 
@@ -160,7 +166,7 @@ fun ProfileScreen(
         title = "Security & Privacy",
         topColor = NumoDS.HeroTealMid,
         bottomColor = NumoDS.HeroTealDark,
-        onClick = {}
+        onClick = onOpenSecurityPrivacy
       )
       Spacer(modifier = Modifier.height(8.dp))
 
@@ -169,7 +175,7 @@ fun ProfileScreen(
         title = "Notifications",
         topColor = Color(0xFF27272A),
         bottomColor = NumoDS.Black,
-        onClick = {}
+        onClick = onOpenNotifications
       )
       Spacer(modifier = Modifier.height(8.dp))
 
@@ -178,7 +184,7 @@ fun ProfileScreen(
         title = "Categories",
         topColor = Color(0xFF27272A),
         bottomColor = NumoDS.Black,
-        onClick = {}
+        onClick = onOpenCategories
       )
       Spacer(modifier = Modifier.height(8.dp))
 
@@ -196,7 +202,7 @@ fun ProfileScreen(
         title = "Help & Support",
         topColor = Color(0xFF27272A),
         bottomColor = NumoDS.Black,
-        onClick = onSignOut
+        onClick = onOpenHelpSupport
       )
 
       Spacer(modifier = Modifier.height(24.dp))

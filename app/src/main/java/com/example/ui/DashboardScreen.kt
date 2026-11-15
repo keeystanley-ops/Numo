@@ -13,6 +13,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.ui.components.NumoBottomNavBar
 import com.example.ui.components.NumoNavTab
+import com.example.ui.profile.CategoriesScreen
+import com.example.ui.profile.HelpSupportScreen
+import com.example.ui.profile.LinkedAccountsScreen
+import com.example.ui.profile.NotificationsScreen
+import com.example.ui.profile.PersonalInformationScreen
+import com.example.ui.profile.SecurityPrivacyScreen
 
 private enum class NumoDashboardPage {
   HOME,
@@ -26,7 +32,13 @@ private enum class NumoDashboardPage {
   SPENDING_INSIGHTS,
   ADD_TRANSACTION,
   PROFILE,
-  SETTINGS
+  SETTINGS,
+  PERSONAL_INFORMATION,
+  LINKED_ACCOUNTS,
+  SECURITY_PRIVACY,
+  NOTIFICATIONS,
+  CATEGORIES,
+  HELP_SUPPORT
 }
 
 @Composable
@@ -70,8 +82,20 @@ fun DashboardScreen(
     NumoDashboardPage.SAVINGS_GOALS,
     NumoDashboardPage.DEBT_MANAGEMENT -> NumoNavTab.GOALS
     NumoDashboardPage.PROFILE,
-    NumoDashboardPage.SETTINGS -> NumoNavTab.PROFILE
+    NumoDashboardPage.SETTINGS,
+    NumoDashboardPage.PERSONAL_INFORMATION,
+    NumoDashboardPage.LINKED_ACCOUNTS,
+    NumoDashboardPage.SECURITY_PRIVACY,
+    NumoDashboardPage.NOTIFICATIONS,
+    NumoDashboardPage.CATEGORIES,
+    NumoDashboardPage.HELP_SUPPORT -> NumoNavTab.PROFILE
   }
+
+  val showBottomBar = currentPage !in setOf(
+    NumoDashboardPage.PERSONAL_INFORMATION,
+    NumoDashboardPage.LINKED_ACCOUNTS,
+    NumoDashboardPage.SECURITY_PRIVACY
+  )
 
   BackHandler(enabled = currentPage != NumoDashboardPage.HOME) {
     currentPage = when (currentPage) {
@@ -81,7 +105,13 @@ fun DashboardScreen(
       NumoDashboardPage.TRANSACTIONS -> NumoDashboardPage.BUDGET_CONTROL
       NumoDashboardPage.SAVINGS_GOALS,
       NumoDashboardPage.DEBT_MANAGEMENT -> NumoDashboardPage.FINANCIAL_GOALS
-      NumoDashboardPage.SETTINGS -> NumoDashboardPage.PROFILE
+      NumoDashboardPage.SETTINGS,
+      NumoDashboardPage.PERSONAL_INFORMATION,
+      NumoDashboardPage.LINKED_ACCOUNTS,
+      NumoDashboardPage.SECURITY_PRIVACY,
+      NumoDashboardPage.NOTIFICATIONS,
+      NumoDashboardPage.CATEGORIES,
+      NumoDashboardPage.HELP_SUPPORT -> NumoDashboardPage.PROFILE
       else -> NumoDashboardPage.HOME
     }
   }
@@ -160,27 +190,65 @@ fun DashboardScreen(
         NumoDashboardPage.PROFILE -> ProfileScreen(
           userName = displayName,
           userEmail = emailDisplay,
+          onOpenPersonalInfo = { currentPage = NumoDashboardPage.PERSONAL_INFORMATION },
+          onOpenLinkedAccounts = { currentPage = NumoDashboardPage.LINKED_ACCOUNTS },
+          onOpenSecurityPrivacy = { currentPage = NumoDashboardPage.SECURITY_PRIVACY },
+          onOpenNotifications = { currentPage = NumoDashboardPage.NOTIFICATIONS },
+          onOpenCategories = { currentPage = NumoDashboardPage.CATEGORIES },
           onOpenSettings = { currentPage = NumoDashboardPage.SETTINGS },
+          onOpenHelpSupport = { currentPage = NumoDashboardPage.HELP_SUPPORT },
           onSignOut = onSignOut
         )
 
         NumoDashboardPage.SETTINGS -> SettingsScreen(
           onBack = { currentPage = NumoDashboardPage.PROFILE }
         )
+
+        NumoDashboardPage.PERSONAL_INFORMATION -> PersonalInformationScreen(
+          initialName = displayName,
+          initialEmail = emailDisplay,
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.LINKED_ACCOUNTS -> LinkedAccountsScreen(
+          currency = userCurrency,
+          customAccounts = customAccounts,
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.SECURITY_PRIVACY -> SecurityPrivacyScreen(
+          userEmail = emailDisplay,
+          onSignOut = onSignOut,
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.NOTIFICATIONS -> NotificationsScreen(
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.CATEGORIES -> CategoriesScreen(
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
+
+        NumoDashboardPage.HELP_SUPPORT -> HelpSupportScreen(
+          onBack = { currentPage = NumoDashboardPage.PROFILE }
+        )
       }
     }
 
-    NumoBottomNavBar(
-      selectedTab = selectedNavTab,
-      onSelectTab = { tab ->
-        currentPage = when (tab) {
-          NumoNavTab.HOME -> NumoDashboardPage.HOME
-          NumoNavTab.ANALYTICS -> NumoDashboardPage.ANALYTICS
-          NumoNavTab.BUDGET -> NumoDashboardPage.BUDGET_CONTROL
-          NumoNavTab.GOALS -> NumoDashboardPage.FINANCIAL_GOALS
-          NumoNavTab.PROFILE -> NumoDashboardPage.PROFILE
+    if (showBottomBar) {
+      NumoBottomNavBar(
+        selectedTab = selectedNavTab,
+        onSelectTab = { tab ->
+          currentPage = when (tab) {
+            NumoNavTab.HOME -> NumoDashboardPage.HOME
+            NumoNavTab.ANALYTICS -> NumoDashboardPage.ANALYTICS
+            NumoNavTab.BUDGET -> NumoDashboardPage.BUDGET_CONTROL
+            NumoNavTab.GOALS -> NumoDashboardPage.FINANCIAL_GOALS
+            NumoNavTab.PROFILE -> NumoDashboardPage.PROFILE
+          }
         }
-      }
-    )
+      )
+    }
   }
 }
