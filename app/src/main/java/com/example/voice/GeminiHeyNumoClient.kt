@@ -1,5 +1,6 @@
 package com.example.voice
 
+import android.util.Base64
 import com.example.data.NumoFinancialEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,12 +43,14 @@ object GeminiHeyNumoClient {
 
   suspend fun sendChat(
     userId: String,
+    userName: String,
     message: String,
     customAccounts: List<Pair<String, String>>,
     resetHistory: Boolean
   ): GeminiBackendResult = withContext(Dispatchers.IO) {
     val payload = JSONObject().apply {
       put("userId", userId)
+      put("userName", userName)
       put("message", message)
       put("resetHistory", resetHistory)
       put("financialSnapshot", buildFinancialSnapshot(customAccounts))
@@ -136,6 +139,40 @@ object GeminiHeyNumoClient {
         // Ignore if backend unreachable; local state still updates cleanly
       }
     }
+  }
+
+  suspend fun synthesizeSpeech(
+    text: String,
+    voice: String,
+    style: String = "warm, calm, natural and conversational"
+  ): ByteArray? = withContext(Dispatchers.IO) {
+    val payload = JSONObject().apply {
+      put("text", text)
+      put("voice", voice)
+      put("style", style)
+    }
+    val mediaType = "application/json; charset=utf-8".toMediaType()
+
+    for (baseUrl in baseUrls) {
+      try {
+        val request = Request.Builder()
+          .url("$baseUrl/api/hey-numo/tts")
+          .post(payload.toString().toRequestBody(mediaType))
+          .build()
+        httpClient.newCall(request).execute().use { response ->
+          if (response.isSuccessful) {
+            val bodyStr = response.body?.string().orEmpty()
+            val b64 = JSONObject(bodyStr).optString("audioBase64")
+            if (b64.isNotBlank()) {
+              return@withContext Base64.decode(b64, Base64.DEFAULT)
+            }
+          }
+        }
+      } catch (_: Exception) {
+        // Try next backend URL or fall back to device TTS
+      }
+    }
+    null
   }
 
   private fun parsePendingAction(obj: JSONObject): PendingFinancialAction {

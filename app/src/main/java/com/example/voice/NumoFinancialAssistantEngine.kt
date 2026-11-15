@@ -54,6 +54,7 @@ class NumoFinancialAssistantEngine(
 
   suspend fun processUserQueryWithGemini(
     userId: String,
+    userName: String,
     rawQuery: String,
     resetHistory: Boolean = false
   ): AssistantReply {
@@ -65,7 +66,7 @@ class NumoFinancialAssistantEngine(
       )
     }
 
-    return when (val res = GeminiHeyNumoClient.sendChat(userId, cleanQuery, customAccounts, resetHistory)) {
+    return when (val res = GeminiHeyNumoClient.sendChat(userId, userName, cleanQuery, customAccounts, resetHistory)) {
       is GeminiBackendResult.Success -> {
         activePendingAction = res.pendingAction
         AssistantReply(

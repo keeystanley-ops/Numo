@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   handleHeyNumoChat,
+  handleHeyNumoTts,
   handleConfirmAction,
   hasConfiguredGeminiKey
 } = require('./server/geminiAssistant');
@@ -67,9 +68,24 @@ const server = http.createServer(async (req, res) => {
       const userId = req.headers['x-numo-user-id'] || body.userId;
       const result = await handleHeyNumoChat({
         userId,
+        userName: body.userName,
         message: body.message,
         financialSnapshot: body.financialSnapshot,
         resetHistory: Boolean(body.resetHistory)
+      });
+      return sendJson(res, result.status, result.body);
+    } catch (err) {
+      return sendJson(res, 400, { error: err.message || 'Invalid request' });
+    }
+  }
+
+  if (url === '/api/hey-numo/tts' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const result = await handleHeyNumoTts({
+        text: body.text,
+        voice: body.voice,
+        style: body.style
       });
       return sendJson(res, result.status, result.body);
     } catch (err) {

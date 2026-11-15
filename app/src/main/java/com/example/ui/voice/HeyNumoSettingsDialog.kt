@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.WarningAmber
@@ -56,6 +57,7 @@ fun HeyNumoSettingsDialog(
   hasMicPermission: Boolean,
   onRequestMicPermission: () -> Unit,
   onWakeWordToggled: (Boolean) -> Unit,
+  onPreviewVoice: (String) -> Unit,
   onClearHistory: () -> Unit,
   onDismiss: () -> Unit
 ) {
@@ -265,6 +267,98 @@ fun HeyNumoSettingsDialog(
           Text("0.75x Slower", fontSize = 11.sp, color = NumoDS.TextMuted)
           Text("1.0x Normal", fontSize = 11.sp, color = NumoDS.TextMuted)
           Text("1.5x Faster", fontSize = 11.sp, color = NumoDS.TextMuted)
+        }
+      }
+
+      // Voice Selection & Preview
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(18.dp))
+          .background(NumoDS.CardSurfaceLight)
+          .border(1.dp, NumoDS.CardBorderLight, RoundedCornerShape(18.dp))
+          .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Text(
+          text = "Numo Voice",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDS.TextPrimary
+        )
+        Text(
+          text = "Choose how Numo sounds. Tap Play to preview each Gemini voice.",
+          fontSize = 11.sp,
+          color = NumoDS.TextMuted
+        )
+        HeyNumoSettings.voiceOptions.forEach { option ->
+          val selected = HeyNumoSettings.selectedVoice == option.id
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(12.dp))
+              .background(
+                if (selected) NumoDS.TealPrimary.copy(alpha = 0.14f)
+                else NumoDS.FieldTrack.copy(alpha = 0.7f)
+              )
+              .border(
+                1.dp,
+                if (selected) NumoDS.TealPrimary else NumoDS.CardBorderLight,
+                RoundedCornerShape(12.dp)
+              )
+              .clickable { HeyNumoSettings.updateSelectedVoice(option.id) }
+              .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                  text = option.id,
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = if (selected) NumoDS.TealDark else NumoDS.TextPrimary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = option.character,
+                  fontSize = 11.sp,
+                  color = NumoDS.TextMuted
+                )
+                if (option.isRecommended) {
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = "Default",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NumoDS.TealDark
+                  )
+                }
+              }
+              Text(
+                text = option.description,
+                fontSize = 11.sp,
+                color = NumoDS.TextSecondary
+              )
+            }
+            Box(
+              modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(NumoDS.TealPrimary.copy(alpha = 0.16f))
+                .clickable {
+                  HeyNumoSettings.updateSelectedVoice(option.id)
+                  onPreviewVoice(option.id)
+                },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Preview ${option.id}",
+                tint = NumoDS.TealDark,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+          }
         }
       }
 

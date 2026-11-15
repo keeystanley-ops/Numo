@@ -9,6 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.json.JSONArray
 
+data class HeyNumoVoiceOption(
+  val id: String,
+  val character: String,
+  val description: String,
+  val isRecommended: Boolean = false
+)
+
 /**
  * Persistent Voice Assistant settings & recent conversation history.
  */
@@ -19,7 +26,17 @@ object HeyNumoSettings {
   private const val KEY_SPEECH_RATE = "speech_rate"
   private const val KEY_LANGUAGE_TAG = "language_tag"
   private const val KEY_HAPTIC = "haptic_feedback"
+  private const val KEY_VOICE_NAME = "voice_name"
   private const val KEY_RECENT_PROMPTS = "recent_prompts"
+
+  val voiceOptions = listOf(
+    HeyNumoVoiceOption("Sulafat", "Warm · Female", "Warm, calm companion — default", isRecommended = true),
+    HeyNumoVoiceOption("Vindemiatrix", "Gentle · Female", "Soft and reassuring"),
+    HeyNumoVoiceOption("Achernar", "Soft · Female", "Calm and soothing"),
+    HeyNumoVoiceOption("Aoede", "Breezy · Female", "Casual and conversational"),
+    HeyNumoVoiceOption("Despina", "Smooth · Female", "Polished and professional"),
+    HeyNumoVoiceOption("Achird", "Friendly · Male", "Friendly alternative")
+  )
 
   private var prefs: SharedPreferences? = null
 
@@ -32,6 +49,8 @@ object HeyNumoSettings {
   var languageTag by mutableStateOf("en-US")
     private set
   var hapticFeedbackEnabled by mutableStateOf(true)
+    private set
+  var selectedVoice by mutableStateOf("Sulafat")
     private set
 
   val recentPrompts = mutableStateListOf(
@@ -48,6 +67,7 @@ object HeyNumoSettings {
     speechRate = p.getFloat(KEY_SPEECH_RATE, 1.0f).coerceIn(0.75f, 1.5f)
     languageTag = p.getString(KEY_LANGUAGE_TAG, "en-US") ?: "en-US"
     hapticFeedbackEnabled = p.getBoolean(KEY_HAPTIC, true)
+    selectedVoice = p.getString(KEY_VOICE_NAME, "Sulafat") ?: "Sulafat"
 
     val rawPrompts = p.getString(KEY_RECENT_PROMPTS, null)
     if (!rawPrompts.isNullOrBlank()) {
@@ -89,6 +109,11 @@ object HeyNumoSettings {
   fun updateHaptic(enabled: Boolean) {
     hapticFeedbackEnabled = enabled
     prefs?.edit()?.putBoolean(KEY_HAPTIC, enabled)?.apply()
+  }
+
+  fun updateSelectedVoice(voice: String) {
+    selectedVoice = voice
+    prefs?.edit()?.putString(KEY_VOICE_NAME, voice)?.apply()
   }
 
   fun recordRecentPrompt(prompt: String) {

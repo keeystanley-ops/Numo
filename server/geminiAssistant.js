@@ -3,6 +3,17 @@ const path = require('path');
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_TTS_MODEL = 'gemini-3.8-flash-lite-tts';
+const GEMINI_INTERACTIONS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions';
+
+const ALLOWED_VOICES = new Set([
+  'Sulafat',
+  'Vindemiatrix',
+  'Achernar',
+  'Aoede',
+  'Despina',
+  'Achird'
+]);
 
 // Per-user isolated conversation history & pending action store
 const userConversations = new Map(); // userId -> Array<{ role: 'user'|'model', parts: Array }>
@@ -415,7 +426,7 @@ function mapGeminiHttpError(status, json) {
   return 'Hey Numo is temporarily unable to reach Gemini AI. Please check your connection and try again.';
 }
 
-async function handleHeyNumoChat({ userId, message, financialSnapshot, resetHistory }) {
+async function handleHeyNumoChat({ userId, userName, message, financialSnapshot, resetHistory }) {
   const cleanUserId = String(userId || '').trim();
   if (!cleanUserId) {
     return { status: 401, body: { error: 'Authenticated userId is required.' } };
@@ -443,17 +454,38 @@ async function handleHeyNumoChat({ userId, message, financialSnapshot, resetHist
   const history = userConversations.get(cleanUserId) || [];
   const snapshot = financialSnapshot || {};
   const currency = snapshot.currency || 'KES';
+  const firstName = String(userName || '').trim().split(/\s+/)[0] || '';
 
   const systemInstruction = {
     parts: [
       {
         text: [
-          'You are Hey Numo, the intelligent personal finance voice and chat assistant inside the Numo Personal Finance OS.',
-          `The authenticated user prefers currency ${currency}.`,
-          'Always use the provided financial tools to inspect real account balances, transactions, budgets, bills, savings goals, debts, investments, and net worth. Never invent numbers.',
-          'For state-modifying actions (recording/updating transactions, budgets, savings contributions, or asset valuations), call the corresponding action tool so the app can show an Awaiting Approval confirmation card. Never claim a transaction was already executed before the user confirms.',
-          'Keep spoken/chat replies concise, warm, accurate, and easy to read aloud (2-4 sentences unless a breakdown is requested).'
-        ].join(' ')
+          'You are Numo ("Hey Numo"), a warm, calm, intelligent personal finance companion inside the Numo Personal Finance OS.',
+          firstName ? `The user's first name is ${firstName}. Use their name occasionally when it feels natural, never in every reply.` : '',
+          `The user's preferred currency is ${currency}. Pronounce Kenyan financial terms (KES, M-PESA, SACCO, MMF, Equity, KCB) naturally.`,
+          '',
+          'PERSONALITY & DELIVERY:',
+          '- Sound like a knowledgeable, warm Kenyan financial friend — never like a scripted bank customer-service agent or robotic chatbot.',
+          '- Be approachable, intelligent without arrogance, patient, encouraging, emotionally aware, honest about uncertainty, and financially responsible.',
+          '- NEVER use robotic filler phrases such as "Certainly!", "As an AI language model...", "How may I assist you today?", or "I hope this helps!".',
+          '- Answer the user\'s actual question first in 1-3 natural conversational sentences before adding brief helpful context.',
+          '- Understand follow-up questions using conversation history without asking the user to repeat themselves.',
+          '- Ask a brief clarifying question when a request is ambiguous (e.g., which account to use).',
+          '',
+          'SITUATION RULES:',
+          '- Normal questions: Friendly, relaxed, and natural.',
+          '- Financial advice & analysis: Confident, analytical, and clear in simple language; never give false guarantees on investment returns.',
+          '- User overspends / budget warning: Supportive, calm, and non-judgmental; offer practical adjustments.',
+          '- User achieves a goal / milestone: Genuinely positive and encouraging.',
+          '- Sensitive financial actions: Precise and careful. Always call the appropriate financial tool to retrieve real numbers (never invent figures). For state-modifying actions, call the action tool so the app presents an Awaiting Approval confirmation card, and never claim an action is saved before the user taps Confirm.',
+          '',
+          'EXAMPLE CONVERSATIONS:',
+          'User: "Hey Numo, how much do I have left for food?" -> Numo: "You\'ve got KES 3,500 left in your food budget. You\'re doing alright! Just keep an eye on those little expenses."',
+          'User: "What if I spend 500 today?" -> Numo: "Then you\'d have KES 3,000 left. That would still keep you within your budget."',
+          'User: "I\'ve finally saved KES 20,000!" -> Numo: "That\'s fantastic! KES 20,000 is a great milestone. You\'re making real progress towards your savings goal."',
+          'User: "I\'ve exceeded my entertainment budget." -> Numo: "Okay, let\'s see what happened. We can look at your other categories and find somewhere to adjust without disrupting your essential expenses."',
+          'User: "Hey Numo, record 450 shillings for lunch." -> (Call createTransaction tool) -> Numo: "Got it! I\'ve prepared KES 450 for lunch under Food & Dining. Go ahead and tap Confirm when you\'re ready to save it."'
+        ].filter(Boolean).join('\n')
       }
     ]
   };
@@ -595,8 +627,106 @@ function handleConfirmAction({ userId, actionId, confirmed }) {
   };
 }
 
+async function handleHeyNumoTts({ text, voice, style }) {
+  const cleanText = String(text || '').trim();
+  if (!cleanText) {
+    return { status: 400, body: { error: 'Text is required for speech synthesis.' } };
+  }
+
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    return {
+      status: 503,
+      body: { errorCode: 'GEMINI_KEY_MISSING', error: 'GEMINI_API_KEY not configured.' }
+    };
+  }
+
+  const selectedVoice = ALLOWED_VOICES.has(voice) ? voice : 'Sulafat';
+  const speechStyle = String(style || 'warm, calm, natural and conversational').trim();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(GEMINI_INTERACTIONS_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        model: GEMINI_TTS_MODEL,
+        input: [
+          {
+            type: 'user_input',
+            content: [
+              {
+                type: 'text',
+                text: cleanText,
+                annotations: [
+                  {
+                    type: 'speech_metadata',
+                    style: speechStyle
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        response_format: { type: 'audio' },
+        generation_config: {
+          speech_config: [{ voice: selectedVoice }]
+        }
+      }),
+      signal: controller.signal
+    });
+
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json) {
+      return {
+        status: response.status || 502,
+        body: { error: mapGeminiHttpError(response.status, json) }
+      };
+    }
+
+    let audioBase64 = json?.output_audio?.data || null;
+    if (!audioBase64 && Array.isArray(json.steps)) {
+      for (let i = json.steps.length - 1; i >= 0; i--) {
+        const step = json.steps[i];
+        if (step?.type === 'model_output' && Array.isArray(step.content)) {
+          const audioBlock = [...step.content].reverse().find(c => c?.type === 'audio' && c?.data);
+          if (audioBlock) {
+            audioBase64 = audioBlock.data;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!audioBase64) {
+      return { status: 502, body: { error: 'Gemini TTS returned no audio data.' } };
+    }
+
+    return {
+      status: 200,
+      body: {
+        audioBase64,
+        mimeType: 'audio/wav',
+        voice: selectedVoice
+      }
+    };
+  } catch (err) {
+    return {
+      status: 504,
+      body: { error: 'Speech generation timed out or failed.' }
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 module.exports = {
   handleHeyNumoChat,
+  handleHeyNumoTts,
   handleConfirmAction,
   hasConfiguredGeminiKey: () => Boolean(getGeminiApiKey())
 };

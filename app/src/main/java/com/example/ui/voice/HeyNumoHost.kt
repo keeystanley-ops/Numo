@@ -102,6 +102,7 @@ fun HeyNumoHost(
     coroutineScope.launch {
       val reply = engine.processUserQueryWithGemini(
         userId = userId,
+        userName = userName,
         rawQuery = clean,
         resetHistory = shouldReset
       )
@@ -369,6 +370,9 @@ fun HeyNumoHost(
         } else if (!enabled) {
           audioManager.stopWakeWordListening()
         }
+      },
+      onPreviewVoice = { voiceName ->
+        audioManager.previewVoice(voiceName)
       },
       onClearHistory = {
         messages.clear()

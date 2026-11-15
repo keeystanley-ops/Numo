@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -14,6 +15,13 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Locale
 import java.util.UUID
 
@@ -32,11 +40,14 @@ enum class VoiceOrbState {
 class NumoVoiceAudioManager(private val context: Context) {
   private val appContext = context.applicationContext
   private val mainHandler = Handler(Looper.getMainLooper())
+  private val audioScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
   private var speechRecognizer: SpeechRecognizer? = null
   private var wakeRecognizer: SpeechRecognizer? = null
   private var tts: TextToSpeech? = null
   private var ttsReady = false
+  private var mediaPlayer: MediaPlayer? = null
+  private var ttsFetchJob: Job? = null
 
   private var isListeningActive = false
   private var isWakeModeActive = false
@@ -93,7 +104,64 @@ class NumoVoiceAudioManager(private val context: Context) {
   }
 
   fun speak(text: String) {
-    if (!HeyNumoSettings.voiceResponseEnabled || !ttsReady || text.isBlank()) {
+    if (!HeyNumoSettings.voiceResponseEnabled || text.isBlank()) {
+      onOrbStateChanged?.invoke(VoiceOrbState.IDLE)
+      return
+    }
+    speakWithVoice(text = text, voiceName = HeyNumoSettings.selectedVoice)
+  }
+
+  fun previewVoice(voiceName: String) {
+    val sampleText = "Hey there! I'm Numo, your financial companion. You've got KES 3,500 left in your food budget this month."
+    speakWithVoice(text = sampleText, voiceName = voiceName)
+  }
+
+  private fun speakWithVoice(text: String, voiceName: String) {
+    stopAudioPlaybackOnly()
+    ttsFetchJob = audioScope.launch {
+      val wavBytes = GeminiHeyNumoClient.synthesizeSpeech(
+        text = text,
+        voice = voiceName,
+        style = "warm, calm, natural and conversational"
+      )
+      if (wavBytes != null && wavBytes.isNotEmpty()) {
+        playWavBytes(wavBytes, fallbackText = text)
+      } else {
+        speakWithDeviceTts(text)
+      }
+    }
+  }
+
+  private fun playWavBytes(wavBytes: ByteArray, fallbackText: String) {
+    try {
+      val tempFile = File(appContext.cacheDir, "hey_numo_tts.wav")
+      tempFile.writeBytes(wavBytes)
+      val mp = MediaPlayer()
+      mediaPlayer = mp
+      mp.setDataSource(tempFile.absolutePath)
+      mp.setOnPreparedListener { player ->
+        onOrbStateChanged?.invoke(VoiceOrbState.SPEAKING)
+        player.start()
+      }
+      mp.setOnCompletionListener { player ->
+        player.release()
+        if (mediaPlayer === player) mediaPlayer = null
+        onOrbStateChanged?.invoke(VoiceOrbState.IDLE)
+      }
+      mp.setOnErrorListener { player, _, _ ->
+        player.release()
+        if (mediaPlayer === player) mediaPlayer = null
+        speakWithDeviceTts(fallbackText)
+        true
+      }
+      mp.prepareAsync()
+    } catch (_: Exception) {
+      speakWithDeviceTts(fallbackText)
+    }
+  }
+
+  private fun speakWithDeviceTts(text: String) {
+    if (!ttsReady || text.isBlank()) {
       onOrbStateChanged?.invoke(VoiceOrbState.IDLE)
       return
     }
@@ -102,8 +170,23 @@ class NumoVoiceAudioManager(private val context: Context) {
     tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
   }
 
-  fun stopSpeaking() {
+  private fun stopAudioPlaybackOnly() {
+    ttsFetchJob?.cancel()
+    ttsFetchJob = null
+    try {
+      mediaPlayer?.stop()
+    } catch (_: Exception) {
+    }
+    try {
+      mediaPlayer?.release()
+    } catch (_: Exception) {
+    }
+    mediaPlayer = null
     tts?.stop()
+  }
+
+  fun stopSpeaking() {
+    stopAudioPlaybackOnly()
     onOrbStateChanged?.invoke(VoiceOrbState.IDLE)
   }
 
@@ -311,6 +394,8 @@ class NumoVoiceAudioManager(private val context: Context) {
 
   fun destroy() {
     stopWakeWordListening()
+    stopAudioPlaybackOnly()
+    audioScope.cancel()
     mainHandler.post {
       speechRecognizer?.destroy()
       speechRecognizer = null
