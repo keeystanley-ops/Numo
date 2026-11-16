@@ -55,3 +55,18 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ budget: created }, { status: 201 });
 }
+
+export async function DELETE(req: Request) {
+  const userId = await getRequestUserId(req);
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json({ error: 'Database not configured.' }, { status: 503 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Budget id required' }, { status: 400 });
+  const db = getDb();
+  await db.delete(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+  return NextResponse.json({ deletedId: id });
+}

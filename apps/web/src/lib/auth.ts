@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
-import { eq } from 'drizzle-orm';
-import { getDb, isDatabaseConfigured, users } from '@/db';
+import { and, eq } from 'drizzle-orm';
+import { accounts, getDb, isDatabaseConfigured, users } from '@/db';
 
 export function isClerkConfigured(): boolean {
   const secret = (process.env.CLERK_SECRET_KEY || '').trim();
@@ -46,22 +46,43 @@ export async function ensureUser(
 ) {
   if (!isDatabaseConfigured()) return null;
   const db = getDb();
-  const existing = await db.query.users.findFirst({
+  let userRow = await db.query.users.findFirst({
     where: eq(users.id, userId),
   });
-  if (existing) return existing;
+  if (!userRow) {
+    const firstName = fullName.trim().split(/\s+/)[0] || null;
+    const [created] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        email,
+        fullName,
+        firstName,
+        primaryCurrency: 'KES',
+        country: 'KE',
+      })
+      .onConflictDoNothing()
+      .returning();
+    userRow = created ?? (await db.query.users.findFirst({ where: eq(users.id, userId) }));
+  }
 
-  const [created] = await db
-    .insert(users)
-    .values({
-      id: userId,
-      email,
-      fullName,
-      primaryCurrency: 'KES',
-      country: 'KE',
-    })
-    .onConflictDoNothing()
-    .returning();
+  // Ensure empty-account fallback: at least one default Cash wallet exists
+  const activeAccounts = await db
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.userId, userId), eq(accounts.isArchived, false)));
 
-  return created ?? null;
+  if (activeAccounts.length === 0) {
+    await db.insert(accounts).values({
+      userId,
+      name: 'Cash',
+      provider: 'Cash Wallet',
+      type: 'CASH',
+      currency: 'KES',
+      balance: '0.00',
+      isDefaultCash: true,
+    });
+  }
+
+  return userRow ?? null;
 }

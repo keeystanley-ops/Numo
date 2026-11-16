@@ -1,14 +1,19 @@
 :root {
   --cream-top: #fef9ef;
   --cream-bottom: #f7eedc;
-  --teal-light: #16bfa1;
-  --teal-dark: #007764;
-  --magenta: #d91b7a;
-  --ochre: #e0911f;
+  --cream-card: #fdf8f0;
+  --cyan: #00e5ff;
+  --turquoise: #14b8a6;
+  --teal-dark: #00796b;
+  --magenta: #ff2d9b;
+  --crimson: #d81b60;
+  --emerald: #1b8a5a;
+  --ochre: #f59e0b;
+  --umber: #5b3a29;
+  --black: #0b0b0b;
   --text-primary: #2d1f14;
   --text-secondary: #5c4636;
-  --card-bg: rgba(255, 255, 255, 0.85);
-  --card-border: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(255, 255, 255, 0.92);
 }
 
 * {
@@ -21,28 +26,82 @@ body {
   min-height: 100vh;
   background: linear-gradient(180deg, var(--cream-top) 0%, var(--cream-bottom) 100%);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .numo-card {
-  background: var(--card-bg);
+  background: linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(249, 240, 224, 0.92));
   border: 1.5px solid var(--card-border);
   border-radius: 22px;
-  box-shadow: 0 12px 30px rgba(45, 31, 20, 0.08);
-  backdrop-filter: blur(12px);
+  box-shadow:
+    0 10px 26px rgba(91, 58, 41, 0.08),
+    inset 0 2px 4px rgba(255, 255, 255, 0.95);
+}
+
+.numo-hero-card {
+  background: linear-gradient(135deg, #00796b 0%, #14b8a6 60%, #2dd4bf 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-radius: 26px;
+  color: #ffffff;
+  box-shadow:
+    0 14px 32px rgba(0, 121, 107, 0.28),
+    inset 0 2px 6px rgba(255, 255, 255, 0.35);
 }
 
 .numo-btn-primary {
-  background: linear-gradient(135deg, var(--teal-light), var(--teal-dark));
+  background: linear-gradient(135deg, var(--turquoise), var(--teal-dark));
   color: #ffffff;
   border: none;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 12px 20px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 119, 100, 0.25);
+  box-shadow: 0 8px 20px rgba(0, 121, 107, 0.25);
+  transition: transform 0.12s ease, opacity 0.15s ease;
 }
 
 .numo-btn-primary:hover {
-  opacity: 0.94;
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.numo-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(91, 58, 41, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+}
+
+.numo-input:focus {
+  border-color: var(--turquoise);
+}
+
+.numo-pill {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+@keyframes numoDrawN {
+  0% {
+    stroke-dashoffset: 320;
+    opacity: 0.2;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.numo-n-stroke {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 0;
+  animation: numoDrawN 1.6s ease-out forwards;
 }

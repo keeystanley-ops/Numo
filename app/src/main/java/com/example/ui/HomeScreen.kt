@@ -76,11 +76,16 @@ fun HomeScreen(
   onOpenInsights: () -> Unit = {},
   onOpenHeyNumo: () -> Unit = {}
 ) {
-  val firstName = userName.trim().substringBefore(" ").ifBlank { "Ayesha" }
+  val rawName = userName.trim().substringBefore(" ")
+  val firstName = if (
+    rawName.isBlank() ||
+    rawName.equals("null", ignoreCase = true) ||
+    rawName.equals("undefined", ignoreCase = true)
+  ) null else rawName
   val isVisible = NumoFinancialEngine.isBalanceVisible
-  val availableCash = NumoFinancialEngine.availableCash
+  val totalBalance = NumoFinancialEngine.accounts.sumOf { it.balance }
   val totalReserved = NumoFinancialEngine.bills.filter { !it.isPaid }.sumOf { it.remainingAmount }
-  val totalBalance = availableCash + totalReserved
+  val availableCash = (totalBalance - totalReserved).coerceAtLeast(0.0)
   val monthlyIncome = NumoFinancialEngine.monthlyIncomeTotal
   val monthlyExpenses = NumoFinancialEngine.monthlyExpenseTotal
   val netCashFlow = NumoFinancialEngine.netCashFlow
@@ -107,19 +112,21 @@ fun HomeScreen(
       ) {
         Column {
           Text(
-            text = "Good Morning,",
+            text = if (firstName != null) "Good Morning," else "Good Morning 👋",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = NumoDS.TextPrimary,
             lineHeight = 24.sp
           )
-          Text(
-            text = "$firstName 👋",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = NumoDS.TextPrimary,
-            lineHeight = 26.sp
-          )
+          if (firstName != null) {
+            Text(
+              text = "$firstName 👋",
+              fontSize = 20.sp,
+              fontWeight = FontWeight.Bold,
+              color = NumoDS.TextPrimary,
+              lineHeight = 26.sp
+            )
+          }
         }
 
         Row(

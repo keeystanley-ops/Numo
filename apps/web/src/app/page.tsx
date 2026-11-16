@@ -1,120 +1,169 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { isDatabaseConfigured } from '@/db';
-import { isClerkConfigured } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
+import { NumoShell } from '@/components/NumoShell';
 
-export const dynamic = 'force-dynamic';
+export default function WelcomeSplashPage() {
+  const router = useRouter();
+  const [animDone, setAnimDone] = useState(false);
+  const [checkingUser, setCheckingUser] = useState(true);
 
-export default function HomePage() {
-  const dbReady = isDatabaseConfigured();
-  const clerkReady = isClerkConfigured();
-  const geminiReady = Boolean(
-    process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
-  );
-  const imagekitReady = Boolean(
-    process.env.IMAGEKIT_PRIVATE_KEY &&
-      !process.env.IMAGEKIT_PRIVATE_KEY.includes('placeholder')
-  );
-
-  const checks = [
-    { label: 'Neon PostgreSQL + Drizzle ORM', ok: dbReady, env: 'DATABASE_URL' },
-    { label: 'Clerk Cloud Authentication', ok: clerkReady, env: 'CLERK_SECRET_KEY' },
-    { label: 'Google Gemini AI & 3.8 TTS', ok: geminiReady, env: 'GEMINI_API_KEY' },
-    { label: 'ImageKit.io Signed Uploads', ok: imagekitReady, env: 'IMAGEKIT_PRIVATE_KEY' },
-  ];
-
-  const endpoints = [
-    'GET /api/health',
-    'GET /api/dashboard',
-    'GET, POST /api/accounts',
-    'GET, POST /api/transactions',
-    'GET, POST /api/budgets',
-    'GET, POST /api/goals',
-    'GET, POST /api/debts',
-    'GET, POST /api/investments',
-    'POST /api/onboarding',
-    'GET /api/imagekit/auth',
-    'POST /api/webhooks/clerk',
-    'POST /api/hey-numo/chat | /tts | /confirm',
-    'ANY /api/trpc/[trpc]',
-  ];
+  useEffect(() => {
+    const timer = setTimeout(() => setAnimDone(true), 1400);
+    fetch('/api/profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.user?.onboardingCompleted) {
+          router.replace('/dashboard');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingUser(false));
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
-    <main style={{ maxWidth: 980, margin: '0 auto', padding: '40px 20px' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#007764', letterSpacing: 1.2, textTransform: 'uppercase' }}>
-            Numo Personal Finance OS
-          </span>
-          <h1 style={{ fontSize: 34, fontWeight: 800, marginTop: 4 }}>
-            Next.js Backend &amp; Web Companion
-          </h1>
-          <p style={{ color: '#5c4636', marginTop: 6 }}>
-            Double-entry Neon PostgreSQL ledger, tRPC &amp; REST APIs, Clerk auth, and Hey Numo Gemini AI.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Link href="/dashboard" className="numo-btn-primary" style={{ textDecoration: 'none' }}>
-            Open Dashboard
-          </Link>
-          <Link
-            href="/assistant"
+    <NumoShell hideBottomNav>
+      <div
+        style={{
+          minHeight: '88vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          paddingTop: 28,
+          paddingBottom: 18,
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          {/* Animated Numo N Logo Formation */}
+          <div
+            className="numo-card"
             style={{
-              textDecoration: 'none',
-              padding: '12px 20px',
-              borderRadius: 16,
-              fontWeight: 700,
-              color: '#007764',
-              background: 'rgba(255,255,255,0.9)',
-              border: '1.5px solid #cdebe4',
+              width: 108,
+              height: 108,
+              margin: '0 auto 20px',
+              borderRadius: 30,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(145deg, #00796b, #14b8a6)',
+              boxShadow: '0 16px 34px rgba(0, 121, 107, 0.28)',
             }}
           >
-            Hey Numo AI
-          </Link>
-        </div>
-      </header>
+            <svg width="62" height="62" viewBox="0 0 64 64" fill="none" aria-label="Numo N Logo">
+              <path
+                d="M16 50V14L48 50V14"
+                stroke="#FFFFFF"
+                strokeWidth="7.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="numo-n-stroke"
+              />
+            </svg>
+          </div>
 
-      <section className="numo-card" style={{ padding: 24, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Environment &amp; Integration Readiness</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          {checks.map((c) => (
-            <div
-              key={c.label}
-              style={{
-                padding: 14,
-                borderRadius: 16,
-                background: c.ok ? 'rgba(22, 191, 161, 0.12)' : 'rgba(224, 145, 31, 0.12)',
-                border: `1px solid ${c.ok ? 'rgba(0, 119, 100, 0.3)' : 'rgba(224, 145, 31, 0.35)'}`,
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{c.label}</div>
-              <div style={{ fontSize: 12, color: '#5c4636', marginTop: 4 }}>
-                {c.ok ? 'Configured & Ready' : `Set ${c.env} in .env.local`}
-              </div>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: 1.5,
+              color: '#00796b',
+              textTransform: 'uppercase',
+            }}
+          >
+            Numo Personal Finance OS
+          </span>
+          <h1 style={{ fontSize: 30, fontWeight: 800, marginTop: 8, lineHeight: 1.15 }}>
+            Track. Plan. Grow.
+          </h1>
+          <p style={{ fontSize: 14, color: '#5c4636', marginTop: 10, lineHeight: 1.5 }}>
+            Your unified Kenyan Shilling (KES) money management, connected accounts, bills, and wealth operating system.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gap: 12, margin: '24px 0' }}>
+          <div className="numo-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(20,184,166,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00796b' }}>
+              <Wallet size={20} />
             </div>
-          ))}
-        </div>
-      </section>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>M-PESA, KCB, Equity &amp; Cash</div>
+              <div style={{ fontSize: 12, color: '#5c4636' }}>One source of truth with atomic balance sync</div>
+            </div>
+          </div>
 
-      <section className="numo-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Available Backend API Routes</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
-          {endpoints.map((ep) => (
-            <code
-              key={ep}
+          <div className="numo-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(216,27,96,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b60' }}>
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Double-Entry Neon Ledger</div>
+              <div style={{ fontSize: 12, color: '#5c4636' }}>Budgets, bills, goals, investments &amp; net worth</div>
+            </div>
+          </div>
+
+          <div className="numo-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Hey Numo AI Assistant</div>
+              <div style={{ fontSize: 12, color: '#5c4636' }}>Hands-free Kenyan finance copilot</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 10, opacity: animDone ? 1 : 0.7, transition: 'opacity 0.3s' }}>
+          <Link
+            href="/onboarding"
+            className="numo-btn-primary"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            {checkingUser ? 'Loading...' : 'Get Started'} <ArrowRight size={17} />
+          </Link>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link
+              href="/sign-in"
+              className="numo-card"
               style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                background: '#faf4e8',
-                fontSize: 13,
+                flex: 1,
+                textAlign: 'center',
+                padding: '12px 14px',
+                textDecoration: 'none',
+                fontWeight: 700,
+                fontSize: 14,
                 color: '#2d1f14',
-                border: '1px solid #ece0ca',
               }}
             >
-              {ep}
-            </code>
-          ))}
+              Sign In
+            </Link>
+            <Link
+              href="/dashboard"
+              className="numo-card"
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '12px 14px',
+                textDecoration: 'none',
+                fontWeight: 700,
+                fontSize: 14,
+                color: '#00796b',
+              }}
+            >
+              Open Dashboard
+            </Link>
+          </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </NumoShell>
   );
 }

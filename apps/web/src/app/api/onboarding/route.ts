@@ -14,13 +14,15 @@ export async function POST(req: Request) {
   await ensureUser(userId, body.email, body.fullName);
   const db = getDb();
 
-  const currency = body.primaryCurrency || 'KES';
+  const currency = 'KES'; // Strictly enforced KES operating currency
   const country = body.country || 'KE';
   const preferredEnvironment = body.preferredEnvironment === 'INVESTMENTS' ? 'INVESTMENTS' : 'MONEY';
 
   await db
     .update(users)
     .set({
+      fullName: body.fullName ? String(body.fullName).trim() : undefined,
+      firstName: body.fullName ? String(body.fullName).trim().split(/\s+/)[0] : undefined,
       primaryCurrency: currency,
       country,
       preferredEnvironment,
