@@ -217,10 +217,13 @@ class MainActivity : ComponentActivity() {
             val error = uri.getQueryParameter("error")
               ?: uri.getQueryParameter("error_description")
             val clerkStatus = uri.getQueryParameter("status")
-            val rotatingToken = uri.getQueryParameter("__clerk_db_jwt")
+              ?: uri.getQueryParameter("__clerk_status")
+            val rotatingToken = uri.getQueryParameter("rotating_token")
+              ?: uri.getQueryParameter("__clerk_db_jwt")
               ?: uri.getQueryParameter("token")
+            val callbackSessionId = uri.getQueryParameter("created_session_id")
 
-            if (rotatingToken != null) {
+            if (!rotatingToken.isNullOrBlank()) {
               ClerkAuthRepository.setClientToken(rotatingToken)
             }
 
@@ -228,7 +231,8 @@ class MainActivity : ComponentActivity() {
               isOAuthInProgressState = false
               val message = when {
                 error?.contains("access_denied", ignoreCase = true) == true ||
-                  error?.contains("cancel", ignoreCase = true) == true ->
+                  error?.contains("cancel", ignoreCase = true) == true ||
+                  clerkStatus == "abandoned" ->
                   "$authProvider authentication was cancelled."
                 else -> error ?: "Sign-in with $authProvider failed. Please try again."
               }
@@ -238,7 +242,10 @@ class MainActivity : ComponentActivity() {
             }
 
             coroutineScope.launch {
-              val sessionResult = ClerkAuthRepository.verifyCurrentClientSession()
+              val sessionResult = ClerkAuthRepository.verifyCurrentClientSession(
+                rotatingTokenHint = rotatingToken,
+                sessionIdHint = callbackSessionId
+              )
               isOAuthInProgressState = false
 
               if (sessionResult.success && !sessionResult.email.isNullOrBlank()) {
@@ -253,7 +260,7 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(context, "Successfully authenticated with $authProvider!", Toast.LENGTH_SHORT).show()
               } else {
                 val failMsg = sessionResult.errorMessage
-                  ?: "$authProvider sign-in was not completed or was cancelled."
+                  ?: "Could not complete $authProvider sign-in. Please try again."
                 oauthErrorMessage = failMsg
                 Toast.makeText(context, failMsg, Toast.LENGTH_LONG).show()
               }
@@ -267,7 +274,27 @@ class MainActivity : ComponentActivity() {
           isOAuthInProgressState = true
           coroutineScope.launch {
             val oauthUrl = ClerkAuthRepository.getOAuthRedirectUrl(provider, isSignUp)
-              ?: ClerkAuthRepository.getOAuthUrl(provider)
+              ?: ClerkAuthRepository.getOAuthRedirectUrl(provider, !isSignUp)
+
+            if (oauthUrl.isNullOrBlank()) {
+              // Check if Clerk already has an active session on this client token
+              val existing = ClerkAuthRepository.verifyCurrentClientSession()
+              isOAuthInProgressState = false
+              if (existing.success && !existing.email.isNullOrBlank()) {
+                hasCompletedSplashAnimation = true
+                routeAuthenticatedUser(
+                  email = existing.email,
+                  provider = authProvider,
+                  fallbackUserId = existing.userId,
+                  fallbackFullName = existing.fullName
+                )
+              } else {
+                val msg = "Unable to start $authProvider sign-in. Please check your connection and try again."
+                oauthErrorMessage = msg
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+              }
+              return@launch
+            }
 
             try {
               val intent = Intent(Intent.ACTION_VIEW, Uri.parse(oauthUrl))

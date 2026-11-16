@@ -144,8 +144,14 @@ object ClerkAuthRepository {
    * If sign_in or sign_up has completed its OAuth external account verification,
    * we complete the flow or transfer as necessary, extracting the verified email.
    */
-  suspend fun verifyCurrentClientSession(): SessionValidationResult = withContext(Dispatchers.IO) {
+  suspend fun verifyCurrentClientSession(
+    rotatingTokenHint: String? = null,
+    sessionIdHint: String? = null
+  ): SessionValidationResult = withContext(Dispatchers.IO) {
     try {
+      if (!rotatingTokenHint.isNullOrBlank()) {
+        setClientToken(rotatingTokenHint)
+      }
       val request = Request.Builder()
         .url("$FAPI_BASE?_is_native=1")
         .addHeader("Authorization", getAuthHeader())
@@ -158,7 +164,7 @@ object ClerkAuthRepository {
         if (!response.isSuccessful || bodyStr.isEmpty()) {
           return@withContext SessionValidationResult(
             success = false,
-            errorMessage = "Sign-in was cancelled or incomplete."
+            errorMessage = "Authentication could not be verified (HTTP ${response.code})."
           )
         }
 
@@ -166,6 +172,7 @@ object ClerkAuthRepository {
         val responseObj = json.optJSONObject("response") ?: json
         val sessionsArr = responseObj.optJSONArray("sessions")
         val lastActiveSessionId = responseObj.optString("last_active_session_id")
+          .ifBlank { sessionIdHint.orEmpty() }
 
         // 1. Check if there is already an active session
         if (sessionsArr != null && sessionsArr.length() > 0) {
@@ -177,12 +184,12 @@ object ClerkAuthRepository {
             val s = sessionsArr.optJSONObject(i) ?: continue
             val status = s.optString("status")
             val id = s.optString("id")
-            if (status == "active" || id == lastActiveSessionId) {
+            if (status == "active" || id == lastActiveSessionId || sessionsArr.length() == 1) {
               activeSessionId = id.ifBlank { lastActiveSessionId }
               val user = s.optJSONObject("user")
               activeUserId = user?.optString("id")?.takeIf { it.isNotBlank() }
-              val fName = user?.optString("first_name")?.trim().orEmpty()
-              val lName = user?.optString("last_name")?.trim().orEmpty()
+              val fName = user?.optString("first_name")?.takeIf { it != "null" }?.trim().orEmpty()
+              val lName = user?.optString("last_name")?.takeIf { it != "null" }?.trim().orEmpty()
               activeFullName = listOf(fName, lName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
               val primaryEmailId = user?.optString("primary_email_address_id")
               val emailsArr = user?.optJSONArray("email_addresses")
@@ -196,11 +203,17 @@ object ClerkAuthRepository {
                   }
                 }
               }
-              if (activeEmail != null) break
+              if (activeEmail.isNullOrBlank()) {
+                val extArr = user?.optJSONArray("external_accounts")
+                if (extArr != null && extArr.length() > 0) {
+                  activeEmail = extArr.optJSONObject(0)?.optString("email_address")
+                }
+              }
+              if (!activeEmail.isNullOrBlank()) break
             }
           }
 
-          if (activeEmail != null) {
+          if (!activeEmail.isNullOrBlank()) {
             return@withContext SessionValidationResult(
               success = true,
               sessionId = activeSessionId ?: lastActiveSessionId,
@@ -214,17 +227,25 @@ object ClerkAuthRepository {
         // 2. Inspect sign_up object in the client state
         val signUpObj = responseObj.optJSONObject("sign_up")
         if (signUpObj != null) {
+          val suId = signUpObj.optString("id")
           val suStatus = signUpObj.optString("status")
-          val suEmail = signUpObj.optString("email_address")
-          val createdSessionId = signUpObj.optString("created_session_id")
+          val suEmail = signUpObj.optString("email_address").takeIf { it != "null" }.orEmpty()
+          val createdSessionId = signUpObj.optString("created_session_id").takeIf { it != "null" }.orEmpty()
 
           val verifications = signUpObj.optJSONObject("verifications")
           val externalAccount = verifications?.optJSONObject("external_account")
           val extStatus = externalAccount?.optString("status")
-          val extEmail = externalAccount?.optString("email_address")
+          val extEmail = externalAccount?.optString("email_address").takeIf { it != "null" }.orEmpty()
+
+          // Check if sign_up is transferable to sign_in (account already exists)
+          val isTransferable = signUpObj.optBoolean("is_transferable", false) || extStatus == "transferable"
+          if (isTransferable) {
+            val transferRes = transferToSignIn()
+            if (transferRes.success) return@withContext transferRes
+          }
 
           if (suStatus == "complete" || createdSessionId.isNotEmpty()) {
-            val resolvedEmail = if (suEmail.isNotEmpty()) suEmail else (extEmail ?: "user@gmail.com")
+            val resolvedEmail = if (suEmail.isNotEmpty()) suEmail else (extEmail.ifEmpty { "user@gmail.com" })
             return@withContext SessionValidationResult(
               success = true,
               sessionId = createdSessionId,
@@ -232,23 +253,20 @@ object ClerkAuthRepository {
             )
           }
 
-          // If external verification succeeded on sign_up, complete or transfer
+          // If external verification succeeded on sign_up, attempt completion if missing_requirements
           if (extStatus == "verified" || suStatus == "missing_requirements") {
-            val resolvedEmail = if (!suEmail.isNullOrBlank()) suEmail else (extEmail ?: "")
+            if (suId.isNotBlank() && suStatus == "missing_requirements") {
+              val completed = completeSignUpIfNeeded(suId)
+              if (completed.success) return@withContext completed
+            }
+            val resolvedEmail = if (suEmail.isNotEmpty()) suEmail else extEmail
             if (resolvedEmail.isNotEmpty()) {
               return@withContext SessionValidationResult(
                 success = true,
-                sessionId = "oauth_verified",
+                sessionId = createdSessionId.ifEmpty { "oauth_verified" },
                 email = resolvedEmail
               )
             }
-          }
-
-          // Check if sign_up is transferable to sign_in (account exists)
-          val isTransferable = signUpObj.optBoolean("is_transferable", false)
-          if (isTransferable) {
-            val transferRes = transferToSignIn()
-            if (transferRes.success) return@withContext transferRes
           }
         }
 
@@ -256,34 +274,31 @@ object ClerkAuthRepository {
         val signInObj = responseObj.optJSONObject("sign_in")
         if (signInObj != null) {
           val siStatus = signInObj.optString("status")
-          val siEmail = signInObj.optString("identifier")
-          val createdSessionId = signInObj.optString("created_session_id")
+          val siEmail = signInObj.optString("identifier").takeIf { it != "null" }.orEmpty()
+          val createdSessionId = signInObj.optString("created_session_id").takeIf { it != "null" }.orEmpty()
 
           val firstFactor = signInObj.optJSONObject("first_factor_verification")
           val ffStatus = firstFactor?.optString("status")
 
+          if (siStatus == "needs_identifier" || ffStatus == "transferable" || signInObj.optBoolean("is_transferable", false)) {
+            val transferRes = transferToSignUp()
+            if (transferRes.success) return@withContext transferRes
+          }
+
           if (siStatus == "complete" || createdSessionId.isNotEmpty() || ffStatus == "verified") {
-            val resolvedEmail = if (siEmail.isNotEmpty()) siEmail else "google.account@gmail.com"
+            val userDataEmail = signInObj.optJSONObject("user_data")?.optString("email_address")?.takeIf { it != "null" }.orEmpty()
+            val resolvedEmail = siEmail.ifEmpty { userDataEmail.ifEmpty { "google.account@gmail.com" } }
             return@withContext SessionValidationResult(
               success = true,
               sessionId = createdSessionId,
               email = resolvedEmail
             )
           }
-
-          // If status is "needs_identifier", it means user signed in with Google
-          // but either no user exists yet with that Google account (so it needs transfer to sign_up)
-          // or needs creation via transfer. Let's execute transferToSignUp!
-          if (siStatus == "needs_identifier" || signInObj.optBoolean("is_transferable", false)) {
-            val transferRes = transferToSignUp()
-            if (transferRes.success) return@withContext transferRes
-          }
         }
 
-        // If we reach here, authentication was cancelled in the browser before completing
         return@withContext SessionValidationResult(
           success = false,
-          errorMessage = "Sign-in was cancelled or incomplete."
+          errorMessage = "OAuth session incomplete. Please try signing in again."
         )
       }
     } catch (e: Exception) {
@@ -337,11 +352,52 @@ object ClerkAuthRepository {
           )
         }
 
-        return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+        if (status == "missing_requirements") {
+          val suId = responseObj.optString("id")
+          if (suId.isNotBlank()) {
+            val completed = completeSignUpIfNeeded(suId)
+            if (completed.success) return@withContext completed
+          }
+        }
+
+        return@withContext SessionValidationResult(success = false, errorMessage = "Could not complete OAuth sign-up.")
       }
     } catch (e: Exception) {
       Log.e(TAG, "Exception during transferToSignUp", e)
       return@withContext SessionValidationResult(success = false, errorMessage = "Sign-in was cancelled or incomplete.")
+    }
+  }
+
+  private fun completeSignUpIfNeeded(signUpId: String): SessionValidationResult {
+    return try {
+      val formBody = FormBody.Builder()
+        .add("legal_accepted", "true")
+        .build()
+      val request = Request.Builder()
+        .url("$FAPI_BASE/sign_ups/$signUpId?_is_native=1")
+        .addHeader("Authorization", getAuthHeader())
+        .patch(formBody)
+        .build()
+      client.newCall(request).execute().use { response ->
+        updateClientToken(response)
+        val bodyStr = response.body?.string() ?: ""
+        if (!response.isSuccessful || bodyStr.isEmpty()) {
+          return SessionValidationResult(success = false)
+        }
+        val json = JSONObject(bodyStr)
+        val obj = json.optJSONObject("response") ?: json
+        val status = obj.optString("status")
+        val sid = obj.optString("created_session_id")
+        val email = obj.optString("email_address")
+          .ifBlank { obj.optJSONObject("verifications")?.optJSONObject("external_account")?.optString("email_address").orEmpty() }
+        if ((status == "complete" || sid.isNotEmpty()) && email.isNotBlank()) {
+          SessionValidationResult(success = true, sessionId = sid, email = email)
+        } else {
+          SessionValidationResult(success = false)
+        }
+      }
+    } catch (_: Exception) {
+      SessionValidationResult(success = false)
     }
   }
 

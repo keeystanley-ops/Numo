@@ -24,6 +24,12 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
+      const authRes = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fullName: fullName.trim() }),
+      });
+      if (!authRes.ok) throw new Error('Could not initialize session.');
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

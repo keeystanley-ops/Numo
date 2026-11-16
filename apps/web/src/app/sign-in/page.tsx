@@ -27,6 +27,12 @@ export default function SignInPage() {
     }
     setLoading(true);
     try {
+      const authRes = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!authRes.ok) throw new Error('Sign in failed');
       const res = await fetch('/api/profile');
       const json = await res.json();
       if (json?.user?.onboardingCompleted) {

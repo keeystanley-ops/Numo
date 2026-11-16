@@ -2,18 +2,34 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Bell, ChevronRight, HelpCircle, Landmark, LogOut, Settings, Shield, Tag, User } from 'lucide-react';
 import { NumoShell } from '@/components/NumoShell';
 import { useDashboardData } from '@/lib/useDashboard';
 
 export default function ProfilePage() {
-  const router = useRouter();
   const { data, refresh } = useDashboardData();
   const [subModal, setSubModal] = useState<'PERSONAL' | 'HELP' | 'CATEGORIES' | 'LOGOUT' | null>(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [newCat, setNewCat] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await fetch('/api/auth/sign-out', { method: 'POST' });
+      const clerkGlobal = (window as unknown as { Clerk?: { signOut?: () => Promise<void> } }).Clerk;
+      if (clerkGlobal?.signOut) {
+        await clerkGlobal.signOut().catch(() => {});
+      }
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.clear();
+      }
+    } finally {
+      window.location.assign('/sign-in');
+    }
+  };
 
   const openPersonal = () => {
     setFullName(data?.user?.fullName || '');
@@ -94,8 +110,33 @@ export default function ProfilePage() {
         <Link href="/settings" style={{ textDecoration: 'none', color: 'inherit' }}>
           <MenuRow icon={<Settings size={18} />} label="Settings & Voice" />
         </Link>
-        <MenuRow icon={<LogOut size={18} color="#d81b60" />} label="Log Out" danger onClick={() => setSubModal('LOGOUT')} />
       </div>
+
+      {/* Dedicated Sign Out Button on Profile Page */}
+      <button
+        type="button"
+        onClick={() => setSubModal('LOGOUT')}
+        disabled={signingOut}
+        className="numo-card"
+        style={{
+          width: '100%',
+          marginTop: 16,
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          color: '#d81b60',
+          fontSize: 15,
+          fontWeight: 800,
+          cursor: 'pointer',
+          border: '1.5px solid rgba(216, 27, 96, 0.25)',
+          background: 'rgba(216, 27, 96, 0.06)',
+        }}
+      >
+        <LogOut size={18} color="#d81b60" />
+        <span>{signingOut ? 'Signing Out...' : 'Sign Out'}</span>
+      </button>
 
       {subModal === 'PERSONAL' && (
         <ModalBox title="Personal Information" onClose={() => setSubModal(null)}>
@@ -139,11 +180,19 @@ export default function ProfilePage() {
       )}
 
       {subModal === 'LOGOUT' && (
-        <ModalBox title="Log Out" onClose={() => setSubModal(null)}>
+        <ModalBox title="Sign Out" onClose={() => setSubModal(null)}>
           <p style={{ fontSize: 13, color: '#5c4636', marginBottom: 14 }}>Are you sure you want to sign out of Numo?</p>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setSubModal(null)} className="numo-card" style={{ flex: 1, padding: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-            <button onClick={() => router.push('/sign-in')} className="numo-btn-primary" style={{ flex: 1, background: '#d81b60' }}>Log Out</button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="numo-btn-primary"
+              style={{ flex: 1, background: '#d81b60' }}
+            >
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
+            </button>
           </div>
         </ModalBox>
       )}

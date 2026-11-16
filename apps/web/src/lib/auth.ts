@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import { cookies } from 'next/headers';
 import { and, eq } from 'drizzle-orm';
 import { accounts, getDb, isDatabaseConfigured, users } from '@/db';
 
@@ -33,6 +34,16 @@ export async function getRequestUserId(req?: Request): Promise<string | null> {
   }
 
   if (!isClerkConfigured()) {
+    try {
+      const cookieStore = await cookies();
+      if (cookieStore.get('numo_signed_out')?.value === '1') {
+        return null;
+      }
+      const cookieUser = cookieStore.get('numo_user_id')?.value?.trim();
+      if (cookieUser) return cookieUser;
+    } catch {
+      // Outside Next.js request context
+    }
     return 'demo_user_ayesha';
   }
 
