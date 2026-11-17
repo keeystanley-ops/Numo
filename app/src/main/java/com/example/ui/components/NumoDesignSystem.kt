@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
  */
 object NumoDS {
   // Warm Peach/Cream Canvas & Neumorphic Surfaces
+  val CreamBg = Color(0xFFFEF9EF)
   val PeachBgTop = Color(0xFFFEF0E7)
   val PeachBgMid = Color(0xFFFCE8DA)
   val PeachBgBottom = Color(0xFFFBE2D1)

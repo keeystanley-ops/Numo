@@ -8,7 +8,8 @@ const {
   hasConfiguredGeminiKey
 } = require('./server/geminiAssistant');
 
-const PORT = process.env.PORT || 3000;
+const rawPort = Number(process.env.PORT);
+const PORT = rawPort && rawPort !== 8080 ? rawPort : 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const APK_FALLBACK = path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
 

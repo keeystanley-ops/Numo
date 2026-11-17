@@ -4,6 +4,7 @@ import android.graphics.Matrix
 import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.view.Surface
 import android.view.TextureView
 import androidx.compose.animation.AnimatedVisibility
@@ -63,12 +64,35 @@ fun WelcomeScreen(
   var hasNavigated by remember { mutableStateOf(false) }
 
   val mediaPlayerHolder = remember { mutableStateOf<MediaPlayer?>(null) }
+  val surfaceHolder = remember { mutableStateOf<Surface?>(null) }
+  val isSurfaceActive = remember { mutableStateOf(false) }
 
   fun navigateOnce() {
     if (isAnimationComplete && !hasNavigated) {
       hasNavigated = true
       onSplashAnimationFinished()
       onGetStarted()
+    }
+  }
+
+  fun releasePlayerAndSurface() {
+    isSurfaceActive.value = false
+    val mp = mediaPlayerHolder.value
+    mediaPlayerHolder.value = null
+    if (mp != null) {
+      runCatching { mp.setOnCompletionListener(null) }
+      runCatching { mp.setOnErrorListener(null) }
+      runCatching { mp.setOnPreparedListener(null) }
+      runCatching { mp.setOnVideoSizeChangedListener(null) }
+      runCatching { mp.setSurface(null) }
+      runCatching { if (mp.isPlaying) mp.stop() }
+      runCatching { mp.reset() }
+      runCatching { mp.release() }
+    }
+    val surf = surfaceHolder.value
+    surfaceHolder.value = null
+    if (surf != null) {
+      runCatching { surf.release() }
     }
   }
 
@@ -97,17 +121,7 @@ fun WelcomeScreen(
 
   DisposableEffect(Unit) {
     onDispose {
-      runCatching {
-        mediaPlayerHolder.value?.let { mp ->
-          mp.setOnCompletionListener(null)
-          mp.setOnErrorListener(null)
-          mp.setOnPreparedListener(null)
-          mp.setOnVideoSizeChangedListener(null)
-          if (mp.isPlaying) mp.stop()
-          mp.release()
-        }
-      }
-      mediaPlayerHolder.value = null
+      releasePlayerAndSurface()
     }
   }
 
@@ -162,29 +176,48 @@ fun WelcomeScreen(
       factory = { ctx ->
         var lastVideoW = 1080
         var lastVideoH = 1920
-        TextureView(ctx).apply {
+        val textureView = TextureView(ctx)
+        textureView.apply {
           isOpaque = true
           surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-              if (mediaPlayerHolder.value != null) return
+              releasePlayerAndSurface()
+              isSurfaceActive.value = true
+              val surface = Surface(surfaceTexture)
+              surfaceHolder.value = surface
               try {
-                val uri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.piggy_bank_splash}")
                 val mp = MediaPlayer().apply {
-                  setDataSource(ctx, uri)
-                  setSurface(Surface(surfaceTexture))
+                  val afd = runCatching { ctx.resources.openRawResourceFd(R.raw.piggy_bank_splash) }.getOrNull()
+                  if (afd != null) {
+                    afd.use {
+                      setDataSource(it.fileDescriptor, it.startOffset, it.length)
+                    }
+                  } else {
+                    val uri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.piggy_bank_splash}")
+                    setDataSource(ctx, uri)
+                  }
+                  setSurface(surface)
                   isLooping = false
                   setOnVideoSizeChangedListener { _, w, h ->
-                    if (w > 0 && h > 0) {
+                    if (isSurfaceActive.value && w > 0 && h > 0) {
                       lastVideoW = w
                       lastVideoH = h
-                      applyCenterCropTransform(this@apply, w, h)
+                      applyCenterCropTransform(textureView, w, h)
                     }
                   }
                   setOnPreparedListener { player ->
-                    applyCenterCropTransform(this@apply, lastVideoW, lastVideoH)
+                    if (!isSurfaceActive.value || !textureView.isAvailable) {
+                      releasePlayerAndSurface()
+                      return@setOnPreparedListener
+                    }
+                    applyCenterCropTransform(textureView, lastVideoW, lastVideoH)
                     if (skipAnimation) {
-                      val dur = player.duration
-                      if (dur > 0) player.seekTo(dur)
+                      val targetPos = (player.duration - 40).coerceAtLeast(0)
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        player.seekTo(targetPos.toLong(), MediaPlayer.SEEK_CLOSEST)
+                      } else {
+                        player.seekTo(targetPos)
+                      }
                       isAnimationComplete = true
                     } else {
                       player.start()
@@ -203,19 +236,27 @@ fun WelcomeScreen(
                 }
                 mediaPlayerHolder.value = mp
               } catch (_: Exception) {
+                releasePlayerAndSurface()
                 isAnimationComplete = true
                 onSplashAnimationFinished()
               }
             }
 
             override fun onSurfaceTextureSizeChanged(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-              applyCenterCropTransform(this@apply, lastVideoW, lastVideoH)
+              applyCenterCropTransform(textureView, lastVideoW, lastVideoH)
             }
 
-            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean = true
+            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
+              releasePlayerAndSurface()
+              return true
+            }
+
             override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) = Unit
           }
         }
+      },
+      onRelease = {
+        releasePlayerAndSurface()
       },
       modifier = Modifier
         .fillMaxSize()

@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.ui.theme.*
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.abs
@@ -107,7 +106,7 @@ fun NumoCalculatorModal(
   Dialog(onDismissRequest = onDismiss) {
     Surface(
       shape = RoundedCornerShape(28.dp),
-      color = CreamBackground,
+      color = NumoDS.PeachBgTop,
       shadowElevation = 16.dp,
       modifier = Modifier.fillMaxWidth()
     ) {
@@ -142,11 +141,11 @@ fun NumoCalculatorModal(
               text = "Calculator",
               fontSize = 18.sp,
               fontWeight = FontWeight.Bold,
-              color = EspressoText
+              color = NumoDS.TextPrimary
             )
           }
           IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = WarmMutedText)
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = NumoDS.TextMuted)
           }
         }
 
@@ -155,7 +154,7 @@ fun NumoCalculatorModal(
         // Display Panel
         Surface(
           shape = RoundedCornerShape(20.dp),
-          color = CardSurface,
+          color = NumoDS.CardSurfaceLight,
           shadowElevation = 2.dp,
           modifier = Modifier.fillMaxWidth()
         ) {
@@ -168,7 +167,7 @@ fun NumoCalculatorModal(
             Text(
               text = expression.ifBlank { "0" },
               fontSize = 16.sp,
-              color = WarmMutedText,
+              color = NumoDS.TextMuted,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
@@ -177,7 +176,7 @@ fun NumoCalculatorModal(
               text = if (errorText != null) errorText!! else formattedResult,
               fontSize = if (errorText != null) 15.sp else 28.sp,
               fontWeight = FontWeight.ExtraBold,
-              color = if (errorText != null) CrimsonAlert else EspressoText,
+              color = if (errorText != null) NumoDS.ExpenseRed else NumoDS.TextPrimary,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
@@ -206,15 +205,15 @@ fun NumoCalculatorModal(
             )
             CalcKeyButton(
               label = "÷",
-              textColor = EspressoText,
-              containerColor = CreamSurface,
+              textColor = NumoDS.TextPrimary,
+              containerColor = NumoDS.CardSurface,
               modifier = Modifier.weight(1f),
               onClick = { appendDigitOrOp("÷") }
             )
             CalcKeyButton(
               label = "×",
-              textColor = EspressoText,
-              containerColor = CreamSurface,
+              textColor = NumoDS.TextPrimary,
+              containerColor = NumoDS.CardSurface,
               modifier = Modifier.weight(1f),
               onClick = { appendDigitOrOp("×") }
             )
@@ -224,7 +223,7 @@ fun NumoCalculatorModal(
                 .height(54.dp)
                 .shadow(2.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
-                .background(CreamSurface)
+                .background(NumoDS.CardSurface)
                 .clickable {
                   errorText = null
                   if (expression.isNotEmpty()) expression = expression.dropLast(1)
@@ -234,7 +233,7 @@ fun NumoCalculatorModal(
               Icon(
                 imageVector = Icons.AutoMirrored.Filled.Backspace,
                 contentDescription = "Delete",
-                tint = EspressoText,
+                tint = NumoDS.TextPrimary,
                 modifier = Modifier.size(20.dp)
               )
             }
@@ -252,22 +251,22 @@ fun NumoCalculatorModal(
             ) {
               Row(horizontalArrangement = Arrangement.spacedBy(buttonGap)) {
                 listOf("7", "8", "9").forEach { d ->
-                  CalcKeyButton(d, EspressoText, CardSurface, Modifier.weight(1f)) { appendDigitOrOp(d) }
+                  CalcKeyButton(d, NumoDS.TextPrimary, NumoDS.CardSurfaceLight, Modifier.weight(1f)) { appendDigitOrOp(d) }
                 }
               }
               Row(horizontalArrangement = Arrangement.spacedBy(buttonGap)) {
                 listOf("4", "5", "6").forEach { d ->
-                  CalcKeyButton(d, EspressoText, CardSurface, Modifier.weight(1f)) { appendDigitOrOp(d) }
+                  CalcKeyButton(d, NumoDS.TextPrimary, NumoDS.CardSurfaceLight, Modifier.weight(1f)) { appendDigitOrOp(d) }
                 }
               }
               Row(horizontalArrangement = Arrangement.spacedBy(buttonGap)) {
                 listOf("1", "2", "3").forEach { d ->
-                  CalcKeyButton(d, EspressoText, CardSurface, Modifier.weight(1f)) { appendDigitOrOp(d) }
+                  CalcKeyButton(d, NumoDS.TextPrimary, NumoDS.CardSurfaceLight, Modifier.weight(1f)) { appendDigitOrOp(d) }
                 }
               }
               Row(horizontalArrangement = Arrangement.spacedBy(buttonGap)) {
-                CalcKeyButton("0", EspressoText, CardSurface, Modifier.weight(2f)) { appendDigitOrOp("0") }
-                CalcKeyButton(".", EspressoText, CardSurface, Modifier.weight(1f)) { appendDigitOrOp(".") }
+                CalcKeyButton("0", NumoDS.TextPrimary, NumoDS.CardSurfaceLight, Modifier.weight(2f)) { appendDigitOrOp("0") }
+                CalcKeyButton(".", NumoDS.TextPrimary, NumoDS.CardSurfaceLight, Modifier.weight(1f)) { appendDigitOrOp(".") }
               }
             }
 
@@ -276,8 +275,8 @@ fun NumoCalculatorModal(
               modifier = Modifier.weight(1f),
               verticalArrangement = Arrangement.spacedBy(buttonGap)
             ) {
-              CalcKeyButton("-", EspressoText, CreamSurface, Modifier.fillMaxWidth()) { appendDigitOrOp("-") }
-              CalcKeyButton("+", EspressoText, CreamSurface, Modifier.fillMaxWidth()) { appendDigitOrOp("+") }
+              CalcKeyButton("-", NumoDS.TextPrimary, NumoDS.CardSurface, Modifier.fillMaxWidth()) { appendDigitOrOp("-") }
+              CalcKeyButton("+", NumoDS.TextPrimary, NumoDS.CardSurface, Modifier.fillMaxWidth()) { appendDigitOrOp("+") }
               Box(
                 modifier = Modifier
                   .fillMaxWidth()

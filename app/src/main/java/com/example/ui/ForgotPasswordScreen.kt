@@ -275,7 +275,7 @@ fun ForgotPasswordScreen(
 
                 if (result.success && !result.signInId.isNullOrEmpty()) {
                   currentSignInId = result.signInId
-                  currentEmailAddressId = result.emailAddressId
+                  currentEmailAddressId = result.emailAddressId ?: ""
                   step = 2
                   isSuccessMessage = true
                   statusMessage = "A 6-digit reset code has been sent to $trimmed. Check your inbox!"

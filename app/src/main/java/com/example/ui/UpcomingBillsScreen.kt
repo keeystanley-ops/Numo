@@ -603,7 +603,7 @@ private fun BillDetailsDialog(
   Dialog(onDismissRequest = onDismiss) {
     Surface(
       shape = RoundedCornerShape(26.dp),
-      color = NumoDS.WarmCream,
+      color = NumoDS.CardSurface,
       shadowElevation = 14.dp,
       modifier = Modifier.fillMaxWidth()
     ) {
@@ -828,7 +828,7 @@ private fun PayBillModal(
   }
 
   Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.WarmCream, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.CardSurface, modifier = Modifier.fillMaxWidth()) {
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -988,7 +988,7 @@ private fun AddOrEditBillDialog(
   var errorText by remember { mutableStateOf<String?>(null) }
 
   Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.WarmCream, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.CardSurface, modifier = Modifier.fillMaxWidth()) {
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -1197,7 +1197,7 @@ private fun AllBillsDirectoryDialog(
   }
 
   Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.WarmCream, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.CardSurface, modifier = Modifier.fillMaxWidth()) {
       Column(modifier = Modifier.padding(18.dp)) {
         Row(
           modifier = Modifier.fillMaxWidth(),

@@ -485,7 +485,7 @@ fun AddTransactionScreen(
               modifier = Modifier
                 .size(54.dp)
                 .clip(CircleShape)
-                .background(if (showMoreExpenseCats) activeAccent.copy(alpha = 0.14f) else NumoDS.WarmCream)
+                .background(if (showMoreExpenseCats) activeAccent.copy(alpha = 0.14f) else NumoDS.CardSurface)
                 .border(1.dp, Color.White, CircleShape),
               contentAlignment = Alignment.Center
             ) {
@@ -661,7 +661,7 @@ fun AddTransactionScreen(
                   modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(NumoDS.WarmCream)
+                    .background(NumoDS.CardSurface)
                     .padding(3.dp)
                 ) {
                   listOf(true to "Percentage", false to "Fixed Amount").forEach { (isPct, label) ->
@@ -811,7 +811,7 @@ fun AddTransactionScreen(
                   modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NumoDS.WarmCream)
+                    .background(NumoDS.CardSurface)
                     .clickable { showIncomeAccountMenu = true }
                     .padding(horizontal = 12.dp, vertical = 12.dp),
                   horizontalArrangement = Arrangement.SpaceBetween,
@@ -1331,7 +1331,7 @@ fun AddTransactionScreen(
     Dialog(onDismissRequest = { showTransferReviewModal = false }) {
       Surface(
         shape = RoundedCornerShape(24.dp),
-        color = NumoDS.WarmCream,
+        color = NumoDS.CardSurface,
         shadowElevation = 12.dp,
         modifier = Modifier.fillMaxWidth()
       ) {
@@ -1466,7 +1466,7 @@ private fun AccountPickerDialog(
   Dialog(onDismissRequest = onDismiss) {
     Surface(
       shape = RoundedCornerShape(22.dp),
-      color = NumoDS.WarmCream,
+      color = NumoDS.CardSurface,
       modifier = Modifier.fillMaxWidth()
     ) {
       Column(modifier = Modifier.padding(18.dp)) {

@@ -237,7 +237,7 @@ fun TransactionsScreen(
           Box(
             modifier = Modifier
               .clip(RoundedCornerShape(18.dp))
-              .background(if (sel) Color(0xFF2B2118) else NumoDS.WarmCream)
+              .background(if (sel) Color(0xFF2B2118) else NumoDS.CardSurface)
               .clickable { onFilterTabChange(idx) }
               .padding(horizontal = 16.dp, vertical = 8.dp)
           ) {
@@ -414,7 +414,7 @@ private fun FilterSortDialog(
   var date by remember { mutableStateOf(currentDate) }
 
   Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.WarmCream, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.CardSurface, modifier = Modifier.fillMaxWidth()) {
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -488,7 +488,7 @@ private fun TransactionDetailModal(
   var errorText by remember { mutableStateOf<String?>(null) }
 
   Dialog(onDismissRequest = onDismiss) {
-    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.WarmCream, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = RoundedCornerShape(24.dp), color = NumoDS.CardSurface, modifier = Modifier.fillMaxWidth()) {
       Column(
         modifier = Modifier
           .fillMaxWidth()

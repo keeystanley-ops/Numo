@@ -74,11 +74,11 @@ fun HeyNumoSettingsDialog(
     Column(
       modifier = Modifier
         .fillMaxWidth(0.92f)
-        .shadow(20.dp, RoundedCornerShape(28.dp), ambientColor = NumoDS.ShadowDark, spotColor = NumoDS.ShadowDark)
+        .shadow(20.dp, RoundedCornerShape(28.dp), ambientColor = NumoDS.CardShadowWarm, spotColor = NumoDS.CardShadowWarm)
         .clip(RoundedCornerShape(28.dp))
         .background(
           Brush.verticalGradient(
-            listOf(NumoDS.CreamBackgroundTop, NumoDS.CreamBackgroundBottom)
+            listOf(NumoDS.PeachBgTop, NumoDS.PeachBgBottom)
           )
         )
         .border(1.5.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(28.dp))
@@ -129,12 +129,12 @@ fun HeyNumoSettingsDialog(
           .fillMaxWidth()
           .clip(RoundedCornerShape(18.dp))
           .background(
-            if (hasMicPermission) NumoDS.TealPrimary.copy(alpha = 0.10f)
+            if (hasMicPermission) NumoDS.Turquoise.copy(alpha = 0.10f)
             else NumoDS.DuneOchre.copy(alpha = 0.16f)
           )
           .border(
             1.dp,
-            if (hasMicPermission) NumoDS.TealPrimary.copy(alpha = 0.35f)
+            if (hasMicPermission) NumoDS.Turquoise.copy(alpha = 0.35f)
             else NumoDS.DuneOchre.copy(alpha = 0.45f),
             RoundedCornerShape(18.dp)
           )
@@ -145,7 +145,7 @@ fun HeyNumoSettingsDialog(
           Icon(
             imageVector = if (hasMicPermission) Icons.Default.CheckCircle else Icons.Default.WarningAmber,
             contentDescription = null,
-            tint = if (hasMicPermission) NumoDS.TealDark else NumoDS.DuneOchre,
+            tint = if (hasMicPermission) NumoDS.HeroTealMid else NumoDS.DuneOchre,
             modifier = Modifier.size(20.dp)
           )
           Spacer(modifier = Modifier.width(8.dp))
@@ -171,7 +171,7 @@ fun HeyNumoSettingsDialog(
             modifier = Modifier
               .clip(RoundedCornerShape(12.dp))
               .background(
-                Brush.horizontalGradient(listOf(NumoDS.TealLight, NumoDS.TealDark))
+                Brush.horizontalGradient(listOf(NumoDS.BtnTealTop, NumoDS.BtnTealBottom))
               )
               .clickable { onRequestMicPermission() }
               .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -189,7 +189,7 @@ fun HeyNumoSettingsDialog(
       // Wake Phrase Toggle
       SettingsToggleRow(
         icon = Icons.Default.Mic,
-        iconTint = NumoDS.TealDark,
+        iconTint = NumoDS.HeroTealMid,
         title = "\"Hey Numo\" Wake Phrase",
         subtitle = "Listens in foreground while Numo is open (paused in background per Android OS limits)",
         checked = HeyNumoSettings.wakeWordEnabled,
@@ -205,7 +205,7 @@ fun HeyNumoSettingsDialog(
       // Voice Response Toggle
       SettingsToggleRow(
         icon = Icons.Default.RecordVoiceOver,
-        iconTint = NumoDS.MagentaAccent,
+        iconTint = NumoDS.Magenta,
         title = "Voice Response (Text-to-Speech)",
         subtitle = "Read assistant replies aloud automatically",
         checked = HeyNumoSettings.voiceResponseEnabled,
@@ -246,7 +246,7 @@ fun HeyNumoSettingsDialog(
             text = "${((HeyNumoSettings.speechRate * 100f).roundToInt() / 100f)}x",
             fontSize = 13.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = NumoDS.TealDark
+            color = NumoDS.HeroTealMid
           )
         }
         Slider(
@@ -255,9 +255,9 @@ fun HeyNumoSettingsDialog(
           valueRange = 0.75f..1.5f,
           steps = 5,
           colors = SliderDefaults.colors(
-            thumbColor = NumoDS.TealDark,
-            activeTrackColor = NumoDS.TealPrimary,
-            inactiveTrackColor = NumoDS.FieldTrack
+            thumbColor = NumoDS.HeroTealMid,
+            activeTrackColor = NumoDS.Turquoise,
+            inactiveTrackColor = NumoDS.TrackBg
           )
         )
         Row(
@@ -298,12 +298,12 @@ fun HeyNumoSettingsDialog(
               .fillMaxWidth()
               .clip(RoundedCornerShape(12.dp))
               .background(
-                if (selected) NumoDS.TealPrimary.copy(alpha = 0.14f)
-                else NumoDS.FieldTrack.copy(alpha = 0.7f)
+                if (selected) NumoDS.Turquoise.copy(alpha = 0.14f)
+                else NumoDS.TrackBg.copy(alpha = 0.7f)
               )
               .border(
                 1.dp,
-                if (selected) NumoDS.TealPrimary else NumoDS.CardBorderLight,
+                if (selected) NumoDS.Turquoise else NumoDS.CardBorderLight,
                 RoundedCornerShape(12.dp)
               )
               .clickable { HeyNumoSettings.updateSelectedVoice(option.id) }
@@ -316,7 +316,7 @@ fun HeyNumoSettingsDialog(
                   text = option.id,
                   fontSize = 13.sp,
                   fontWeight = FontWeight.Bold,
-                  color = if (selected) NumoDS.TealDark else NumoDS.TextPrimary
+                  color = if (selected) NumoDS.HeroTealMid else NumoDS.TextPrimary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -330,7 +330,7 @@ fun HeyNumoSettingsDialog(
                     text = "Default",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NumoDS.TealDark
+                    color = NumoDS.HeroTealMid
                   )
                 }
               }
@@ -344,7 +344,7 @@ fun HeyNumoSettingsDialog(
               modifier = Modifier
                 .size(30.dp)
                 .clip(CircleShape)
-                .background(NumoDS.TealPrimary.copy(alpha = 0.16f))
+                .background(NumoDS.Turquoise.copy(alpha = 0.16f))
                 .clickable {
                   HeyNumoSettings.updateSelectedVoice(option.id)
                   onPreviewVoice(option.id)
@@ -354,7 +354,7 @@ fun HeyNumoSettingsDialog(
               Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = "Preview ${option.id}",
-                tint = NumoDS.TealDark,
+                tint = NumoDS.HeroTealMid,
                 modifier = Modifier.size(16.dp)
               )
             }
@@ -389,12 +389,12 @@ fun HeyNumoSettingsDialog(
                 .weight(1f)
                 .clip(RoundedCornerShape(12.dp))
                 .background(
-                  if (selected) NumoDS.TealPrimary.copy(alpha = 0.16f)
-                  else NumoDS.FieldTrack
+                  if (selected) NumoDS.Turquoise.copy(alpha = 0.16f)
+                  else NumoDS.TrackBg
                 )
                 .border(
                   1.dp,
-                  if (selected) NumoDS.TealPrimary else NumoDS.CardBorderLight,
+                  if (selected) NumoDS.Turquoise else NumoDS.CardBorderLight,
                   RoundedCornerShape(12.dp)
                 )
                 .clickable { HeyNumoSettings.updateLanguage(tag) }
@@ -405,7 +405,7 @@ fun HeyNumoSettingsDialog(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) NumoDS.TealDark else NumoDS.TextSecondary,
+                color = if (selected) NumoDS.HeroTealMid else NumoDS.TextSecondary,
                 maxLines = 1
               )
             }
@@ -418,7 +418,7 @@ fun HeyNumoSettingsDialog(
         modifier = Modifier
           .fillMaxWidth()
           .clip(RoundedCornerShape(16.dp))
-          .background(NumoDS.FieldTrack.copy(alpha = 0.85f))
+          .background(NumoDS.TrackBg.copy(alpha = 0.85f))
           .border(1.dp, NumoDS.CardBorderLight, RoundedCornerShape(16.dp))
           .padding(12.dp),
         verticalAlignment = Alignment.Top
@@ -426,7 +426,7 @@ fun HeyNumoSettingsDialog(
         Icon(
           imageVector = Icons.Default.Lock,
           contentDescription = null,
-          tint = NumoDS.TealDark,
+          tint = NumoDS.HeroTealMid,
           modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -443,8 +443,8 @@ fun HeyNumoSettingsDialog(
         modifier = Modifier
           .fillMaxWidth()
           .clip(RoundedCornerShape(16.dp))
-          .background(NumoDS.MagentaAccent.copy(alpha = 0.10f))
-          .border(1.dp, NumoDS.MagentaAccent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+          .background(NumoDS.Magenta.copy(alpha = 0.10f))
+          .border(1.dp, NumoDS.Magenta.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
           .clickable {
             HeyNumoSettings.clearRecentPrompts()
             onClearHistory()
@@ -456,7 +456,7 @@ fun HeyNumoSettingsDialog(
         Icon(
           imageVector = Icons.Default.DeleteOutline,
           contentDescription = null,
-          tint = NumoDS.MagentaAccent,
+          tint = NumoDS.Magenta,
           modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -464,7 +464,7 @@ fun HeyNumoSettingsDialog(
           text = "Clear Conversation History",
           fontSize = 13.sp,
           fontWeight = FontWeight.Bold,
-          color = NumoDS.MagentaAccent
+          color = NumoDS.Magenta
         )
       }
     }
@@ -524,9 +524,9 @@ private fun SettingsToggleRow(
       onCheckedChange = onCheckedChange,
       colors = SwitchDefaults.colors(
         checkedThumbColor = Color.White,
-        checkedTrackColor = NumoDS.TealPrimary,
+        checkedTrackColor = NumoDS.Turquoise,
         uncheckedThumbColor = Color.White,
-        uncheckedTrackColor = NumoDS.FieldBorder
+        uncheckedTrackColor = Color(0xFFD6C7BA)
       )
     )
   }

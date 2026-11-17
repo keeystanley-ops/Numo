@@ -138,13 +138,13 @@ fun HomeScreen(
               .shadow(
                 elevation = 6.dp,
                 shape = RoundedCornerShape(20.dp),
-                ambientColor = NumoDS.TealPrimary.copy(alpha = 0.25f),
-                spotColor = NumoDS.TealPrimary.copy(alpha = 0.25f)
+                ambientColor = NumoDS.Turquoise.copy(alpha = 0.25f),
+                spotColor = NumoDS.Turquoise.copy(alpha = 0.25f)
               )
               .clip(RoundedCornerShape(20.dp))
               .background(
                 Brush.horizontalGradient(
-                  listOf(NumoDS.TealLight, NumoDS.TealDark)
+                  listOf(NumoDS.BtnTealTop, NumoDS.BtnTealBottom)
                 )
               )
               .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
@@ -570,7 +570,7 @@ fun HomeScreen(
             NumoClayIconBadge(
               icon = Icons.Default.AccountBalanceWallet,
               topColor = Color(0xFF4ADE80),
-              bottomColor = NumoDS.TealPrimary,
+              bottomColor = NumoDS.HeroTealMid,
               size = 54.dp,
               iconSize = 26.dp
             )

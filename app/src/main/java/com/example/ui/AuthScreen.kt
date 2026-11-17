@@ -108,7 +108,7 @@ fun AuthScreen(
       val result = ClerkAuthRepository.signIn(cleanEmail, password)
       isLoading = false
       if (result.success) {
-        onSignInSuccess(result.email ?: cleanEmail)
+        onSignInSuccess(cleanEmail)
       } else {
         localErrorMessage = result.errorMessage ?: "Sign in failed. Please check your credentials."
       }
