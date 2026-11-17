@@ -569,19 +569,9 @@ class MainActivity : ComponentActivity() {
  */
 @Composable
 private fun StartupLoadingScreen() {
+  // Plain warm cream surface while checking persisted session so no 'N' emblem
+  // flashes before the piggy-bank splash animation begins.
   NumoScreenBackground(modifier = Modifier.testTag("startup_loading_screen")) {
-    Column(
-      modifier = Modifier.fillMaxSize(),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center
-    ) {
-      Numo3DLogoEmblem(size = 84.dp)
-      Spacer(modifier = Modifier.height(22.dp))
-      CircularProgressIndicator(
-        color = NumoDS.Turquoise,
-        modifier = Modifier.size(26.dp),
-        strokeWidth = 2.5.dp
-      )
-    }
+    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize())
   }
 }

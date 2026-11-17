@@ -6,20 +6,33 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.view.Surface
 import android.view.TextureView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -34,8 +47,8 @@ import com.example.ui.components.NumoDS
 /**
  * Numo Official Full-Screen Animated Piggy-Bank Splash Screen.
  * Fills the entire viewport edge-to-edge using the supplied 1080p MP4 asset,
- * keeps the video's own downward arrow disabled until playback finishes,
- * and advances to onboarding when the user taps the video's arrow or swipes left.
+ * reveals the white & gold-glowing downward arrow button ONLY after playback completes,
+ * and advances to onboarding on tap or left swipe without auto-redirecting.
  */
 @Composable
 fun WelcomeScreen(
@@ -97,6 +110,27 @@ fun WelcomeScreen(
       mediaPlayerHolder.value = null
     }
   }
+
+  // Subtle floating & pulsing glow for the white + gold completion arrow
+  val infiniteTransition = rememberInfiniteTransition(label = "whiteGoldArrowPulse")
+  val arrowFloatY by infiniteTransition.animateFloat(
+    initialValue = 0f,
+    targetValue = 7f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "arrowFloatY"
+  )
+  val glowPulse by infiniteTransition.animateFloat(
+    initialValue = 0.72f,
+    targetValue = 1f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "glowPulse"
+  )
 
   Box(
     modifier = Modifier
@@ -174,12 +208,12 @@ fun WelcomeScreen(
               }
             }
 
-            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+            override fun onSurfaceTextureSizeChanged(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
               applyCenterCropTransform(this@apply, lastVideoW, lastVideoH)
             }
 
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean = true
+            override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) = Unit
           }
         }
       },
@@ -188,28 +222,103 @@ fun WelcomeScreen(
         .testTag("welcome_hero_illustration")
     )
 
-    // Invisible touch target aligned directly over the white circular arrow inside the video,
-    // activated strictly after the animation playback completes.
-    if (isAnimationComplete) {
-      Box(
-        modifier = Modifier
-          .align(Alignment.BottomCenter)
-          .padding(bottom = 110.dp)
-          .size(120.dp)
-          .clip(CircleShape)
-          .semantics {
-            contentDescription = "Continue to Onboarding"
-          }
-          .clickable(
-            enabled = !hasNavigated,
-            role = Role.Button,
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
+    // Bottom-center White Circular Arrow with Warm Goldish Glow & Sparkles
+    // Hidden completely while animation plays; appears only when playback finishes.
+    AnimatedVisibility(
+      visible = isAnimationComplete,
+      enter = fadeIn(tween(380)),
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .navigationBarsPadding()
+        .padding(bottom = 42.dp)
+    ) {
+      Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.graphicsLayer {
+          translationY = with(density) { arrowFloatY.dp.toPx() }
+        }
+      ) {
+        // 3 little gold sparkle rays above the white circle
+        Canvas(modifier = Modifier.size(width = 36.dp, height = 14.dp)) {
+          val rayColor = Color(0xFFF59E0B).copy(alpha = glowPulse)
+          val cx = size.width / 2f
+          drawLine(
+            color = rayColor,
+            start = Offset(cx, 2f),
+            end = Offset(cx, size.height - 2f),
+            strokeWidth = 2.4.dp.toPx(),
+            cap = StrokeCap.Round
+          )
+          drawLine(
+            color = rayColor,
+            start = Offset(cx - 10.dp.toPx(), 5f),
+            end = Offset(cx - 7.dp.toPx(), size.height - 1f),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round
+          )
+          drawLine(
+            color = rayColor,
+            start = Offset(cx + 10.dp.toPx(), 5f),
+            end = Offset(cx + 7.dp.toPx(), size.height - 1f),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round
+          )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Box(
+          modifier = Modifier
+            .size(92.dp)
+            .semantics { contentDescription = "Continue to Onboarding" }
+            .clickable(
+              enabled = !hasNavigated,
+              role = Role.Button
+            ) {
+              navigateOnce()
+            }
+            .testTag("welcome_get_started_button"),
+          contentAlignment = Alignment.Center
+        ) {
+          // Warm goldish outer glow halo
+          Box(
+            modifier = Modifier
+              .size(86.dp)
+              .clip(CircleShape)
+              .background(
+                Brush.radialGradient(
+                  colors = listOf(
+                    Color(0xFFFBBF24).copy(alpha = 0.42f * glowPulse),
+                    Color(0xFFF59E0B).copy(alpha = 0.16f * glowPulse),
+                    Color.Transparent
+                  )
+                )
+              )
+          )
+
+          // Crisp White Circular Button with Dark Teal/Umber Downward Chevron
+          Box(
+            modifier = Modifier
+              .size(60.dp)
+              .shadow(
+                elevation = 12.dp,
+                shape = CircleShape,
+                ambientColor = Color(0xFFF59E0B),
+                spotColor = Color(0xFFF59E0B)
+              )
+              .clip(CircleShape)
+              .background(Color.White),
+            contentAlignment = Alignment.Center
           ) {
-            navigateOnce()
+            Icon(
+              imageVector = Icons.Default.KeyboardArrowDown,
+              contentDescription = null,
+              tint = Color(0xFF134E4A),
+              modifier = Modifier.size(32.dp)
+            )
           }
-          .testTag("welcome_get_started_button")
-      )
+        }
+      }
     }
   }
 }

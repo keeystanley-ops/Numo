@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 
 export default function WelcomeSplashPage() {
   const router = useRouter();
@@ -78,26 +79,47 @@ export default function WelcomeSplashPage() {
         }}
       />
 
-      {/* Transparent touch target aligned over the video's own white circular downward arrow */}
+      {/* White Circular Downward Arrow with Warm Goldish Glow & Sparkles */}
       {animationComplete && (
-        <button
-          type="button"
-          onClick={proceedToNext}
-          aria-label="Continue to Onboarding"
+        <div
+          className="numo-splash-arrow"
           style={{
             position: 'absolute',
-            bottom: '13%',
+            bottom: 42,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: 112,
-            height: 112,
-            borderRadius: '50%',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            zIndex: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            zIndex: 30,
           }}
-        />
+        >
+          <svg width="36" height="14" viewBox="0 0 36 14" fill="none" aria-hidden="true">
+            <path d="M18 2V12" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M8 5L11 12" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M28 5L25 12" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+          <button
+            type="button"
+            onClick={proceedToNext}
+            aria-label="Continue to Onboarding"
+            style={{
+              width: 62,
+              height: 62,
+              borderRadius: '50%',
+              border: '2px solid rgba(251, 191, 36, 0.55)',
+              background: '#ffffff',
+              color: '#134e4a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 0 26px rgba(245, 158, 11, 0.55), 0 8px 20px rgba(45, 31, 20, 0.14)',
+            }}
+          >
+            <ChevronDown size={30} strokeWidth={2.7} />
+          </button>
+        </div>
       )}
     </div>
   );
