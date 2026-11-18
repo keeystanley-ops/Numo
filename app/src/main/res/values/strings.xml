@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Numo</string>
+    <string name="all_set_go_to_dashboard">Go to Dashboard</string>
+    <string name="all_set_explore_features">Explore Features</string>
+    <string name="all_set_replay_animation">Replay animation</string>
 </resources>

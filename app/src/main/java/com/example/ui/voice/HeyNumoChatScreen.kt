@@ -34,11 +34,15 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -68,6 +73,7 @@ import com.example.ui.components.NumoFloatingDecorations
 import com.example.ui.components.NumoNeumorphicCard
 import com.example.ui.components.NumoPrimaryButton
 import com.example.ui.components.NumoScreenBackground
+import com.example.voice.ChatUiState
 import com.example.voice.HeyNumoMessage
 import com.example.voice.PendingFinancialAction
 import com.example.voice.VoiceOrbState
@@ -75,13 +81,17 @@ import java.text.NumberFormat
 import java.util.Locale
 
 /**
- * SCREEN 3 — Hey Numo Conversational Interface & Transaction Confirmation (right phone in reference).
+ * SCREEN 3 — Hey Numo Conversational Interface & Transaction Confirmation.
+ * Retains exact UI structure while powering multi-turn streaming chat via Firebase AI Logic.
  */
 @Composable
 fun HeyNumoChatScreen(
   messages: List<HeyNumoMessage>,
+  chatUiState: ChatUiState = ChatUiState.Idle,
   orbState: VoiceOrbState,
   onSendMessage: (String) -> Unit,
+  onRetryLastMessage: () -> Unit = {},
+  onDismissError: () -> Unit = {},
   onConfirmAction: (PendingFinancialAction) -> Unit,
   onCancelAction: (PendingFinancialAction) -> Unit,
   onMicClick: () -> Unit,
@@ -93,11 +103,14 @@ fun HeyNumoChatScreen(
   var showQuickPrompts by remember { mutableStateOf(false) }
   val listState = rememberLazyListState()
 
-  LaunchedEffect(messages.size) {
+  val lastMessageLen = messages.lastOrNull()?.text?.length ?: 0
+  LaunchedEffect(messages.size, lastMessageLen) {
     if (messages.isNotEmpty()) {
       listState.animateScrollToItem(messages.lastIndex)
     }
   }
+
+  val isBusy = chatUiState is ChatUiState.Loading || chatUiState is ChatUiState.Streaming
 
   val suggestedPrompts = listOf(
     "Check my available cash",
@@ -129,15 +142,17 @@ fun HeyNumoChatScreen(
         HeyNumoCircleButton(
           icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
           contentDescription = "Back",
-          onClick = onBack
+          onClick = onBack,
+          modifier = Modifier.testTag("chat_back_button")
         )
 
-        HeyNumoStatusPill(isActive = orbState != VoiceOrbState.ERROR)
+        HeyNumoStatusPill(isActive = orbState != VoiceOrbState.ERROR && chatUiState !is ChatUiState.Error)
 
         HeyNumoCircleButton(
           icon = Icons.Default.MoreHoriz,
           contentDescription = "Voice Settings",
-          onClick = onOpenSettings
+          onClick = onOpenSettings,
+          modifier = Modifier.testTag("chat_settings_button")
         )
       }
 
@@ -146,7 +161,8 @@ fun HeyNumoChatScreen(
         state = listState,
         modifier = Modifier
           .weight(1f)
-          .fillMaxWidth(),
+          .fillMaxWidth()
+          .testTag("chat_message_list"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
       ) {
         if (messages.isEmpty()) {
@@ -184,7 +200,7 @@ fun HeyNumoChatScreen(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                   cornerRadius = 16.dp,
-                  onClick = { onSendMessage(prompt) }
+                  onClick = { if (!isBusy) onSendMessage(prompt) }
                 ) {
                   Text(
                     text = prompt,
@@ -205,11 +221,76 @@ fun HeyNumoChatScreen(
           } else {
             AssistantChatBubble(
               text = msg.text,
+              isStreaming = msg.isStreaming,
               pendingAction = msg.pendingAction,
               onConfirm = onConfirmAction,
               onCancel = onCancelAction
             )
           }
+        }
+      }
+
+      // Transparent Error Banner when Gemini / App Check / Network fails
+      if (chatUiState is ChatUiState.Error) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(NumoDS.Magenta.copy(alpha = 0.12f))
+            .border(1.dp, NumoDS.Magenta.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .testTag("chat_error_banner"),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Icon(
+            imageVector = Icons.Default.WarningAmber,
+            contentDescription = "Error",
+            tint = NumoDS.Magenta,
+            modifier = Modifier.size(18.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = chatUiState.message,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            color = NumoDS.TextPrimary,
+            modifier = Modifier.weight(1f)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Box(
+            modifier = Modifier
+              .clip(RoundedCornerShape(10.dp))
+              .background(NumoDS.Magenta)
+              .clickable { onRetryLastMessage() }
+              .padding(horizontal = 10.dp, vertical = 6.dp)
+              .testTag("chat_retry_button")
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Retry",
+                tint = Color.White,
+                modifier = Modifier.size(13.dp)
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text(
+                text = "Retry",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+            }
+          }
+          Spacer(modifier = Modifier.width(6.dp))
+          Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = "Dismiss error",
+            tint = NumoDS.TextSecondary,
+            modifier = Modifier
+              .size(18.dp)
+              .clickable { onDismissError() }
+          )
         }
       }
 
@@ -230,7 +311,7 @@ fun HeyNumoChatScreen(
                 .border(1.dp, NumoDS.CardBorderLight, RoundedCornerShape(50))
                 .clickable {
                   showQuickPrompts = false
-                  onSendMessage(prompt)
+                  if (!isBusy) onSendMessage(prompt)
                 }
                 .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
@@ -270,7 +351,8 @@ fun HeyNumoChatScreen(
               .size(34.dp)
               .clip(CircleShape)
               .background(Color(0xFFEBDACC))
-              .clickable { showQuickPrompts = !showQuickPrompts },
+              .clickable { showQuickPrompts = !showQuickPrompts }
+              .testTag("chat_quick_prompts_button"),
             contentAlignment = Alignment.Center
           ) {
             Icon(
@@ -289,7 +371,7 @@ fun HeyNumoChatScreen(
           ) {
             if (messageInput.isEmpty()) {
               Text(
-                text = "Type your message...",
+                text = if (isBusy) "Numo is thinking..." else "Type your message...",
                 fontSize = 14.sp,
                 color = NumoDS.TextMuted
               )
@@ -307,14 +389,16 @@ fun HeyNumoChatScreen(
               keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
               keyboardActions = KeyboardActions(
                 onSend = {
-                  if (messageInput.isNotBlank()) {
+                  if (messageInput.isNotBlank() && !isBusy) {
                     val txt = messageInput.trim()
                     messageInput = ""
                     onSendMessage(txt)
                   }
                 }
               ),
-              modifier = Modifier.fillMaxWidth()
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("chat_input")
             )
           }
 
@@ -323,20 +407,29 @@ fun HeyNumoChatScreen(
               modifier = Modifier
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(NumoDS.Turquoise)
-                .clickable {
+                .background(if (isBusy) NumoDS.TextMuted else NumoDS.Turquoise)
+                .clickable(enabled = !isBusy) {
                   val txt = messageInput.trim()
                   messageInput = ""
                   onSendMessage(txt)
-                },
+                }
+                .testTag("chat_send_button"),
               contentAlignment = Alignment.Center
             ) {
-              Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-              )
+              if (isBusy) {
+                CircularProgressIndicator(
+                  color = Color.White,
+                  strokeWidth = 2.dp,
+                  modifier = Modifier.size(16.dp)
+                )
+              } else {
+                Icon(
+                  imageVector = Icons.AutoMirrored.Filled.Send,
+                  contentDescription = "Send",
+                  tint = Color.White,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
             }
           } else {
             Icon(
@@ -346,6 +439,7 @@ fun HeyNumoChatScreen(
               modifier = Modifier
                 .size(22.dp)
                 .clickable { onMicClick() }
+                .testTag("chat_mic_button")
             )
             Spacer(modifier = Modifier.width(10.dp))
             Box(
@@ -353,7 +447,8 @@ fun HeyNumoChatScreen(
                 .size(32.dp)
                 .clip(CircleShape)
                 .background(NumoDS.Turquoise.copy(alpha = 0.16f))
-                .clickable { onSwitchToVoiceMode() },
+                .clickable { onSwitchToVoiceMode() }
+                .testTag("chat_voice_mode_button"),
               contentAlignment = Alignment.Center
             ) {
               Icon(
@@ -402,6 +497,7 @@ private fun UserChatBubble(text: String) {
 @Composable
 private fun AssistantChatBubble(
   text: String,
+  isStreaming: Boolean,
   pendingAction: PendingFinancialAction?,
   onConfirm: (PendingFinancialAction) -> Unit,
   onCancel: (PendingFinancialAction) -> Unit
@@ -442,16 +538,44 @@ private fun AssistantChatBubble(
               modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF22C55E))
+                .background(if (isStreaming) NumoDS.CyanBright else Color(0xFF22C55E))
             )
+            if (isStreaming) {
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (text.isBlank()) "Thinking..." else "Streaming...",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = NumoDS.HeroTealMid
+              )
+            }
           }
           Spacer(modifier = Modifier.height(3.dp))
-          Text(
-            text = text,
-            fontSize = 14.sp,
-            lineHeight = 19.sp,
-            color = NumoDS.TextPrimary
-          )
+          if (text.isBlank() && isStreaming) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+              CircularProgressIndicator(
+                color = NumoDS.HeroTealMid,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(14.dp)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = "Checking your financial snapshot...",
+                fontSize = 13.sp,
+                color = NumoDS.TextSecondary
+              )
+            }
+          } else {
+            Text(
+              text = text,
+              fontSize = 14.sp,
+              lineHeight = 19.sp,
+              color = NumoDS.TextPrimary
+            )
+          }
         }
       }
     }

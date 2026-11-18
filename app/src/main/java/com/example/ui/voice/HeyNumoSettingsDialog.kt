@@ -362,6 +362,71 @@ fun HeyNumoSettingsDialog(
         }
       }
 
+      // Gemini AI Model Selector
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(18.dp))
+          .background(NumoDS.CardSurfaceLight)
+          .border(1.dp, NumoDS.CardBorderLight, RoundedCornerShape(18.dp))
+          .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Text(
+          text = "Gemini AI Model",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Bold,
+          color = NumoDS.TextPrimary
+        )
+        Text(
+          text = "Choose how Numo balances speed and deep financial reasoning.",
+          fontSize = 11.sp,
+          color = NumoDS.TextMuted
+        )
+        HeyNumoSettings.modelOptions.forEach { option ->
+          val selected = HeyNumoSettings.selectedModel == option.id
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(12.dp))
+              .background(
+                if (selected) NumoDS.Turquoise.copy(alpha = 0.14f)
+                else NumoDS.TrackBg.copy(alpha = 0.7f)
+              )
+              .border(
+                1.dp,
+                if (selected) NumoDS.Turquoise else NumoDS.CardBorderLight,
+                RoundedCornerShape(12.dp)
+              )
+              .clickable { HeyNumoSettings.updateSelectedModel(option.id) }
+              .padding(horizontal = 10.dp, vertical = 8.dp)
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = option.label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (selected) NumoDS.HeroTealMid else NumoDS.TextPrimary
+              )
+              if (option.isRecommended) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = "Default",
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = NumoDS.HeroTealMid
+                )
+              }
+            }
+            Text(
+              text = option.description,
+              fontSize = 11.sp,
+              color = NumoDS.TextSecondary
+            )
+          }
+        }
+      }
+
       // Language Selector
       Column(
         modifier = Modifier
@@ -431,7 +496,7 @@ fun HeyNumoSettingsDialog(
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = "Privacy Notice: Hey Numo uses Android's on-device SpeechRecognizer for wake-word spotting and local financial engine queries. Voice audio is never streamed to external AI servers, and transactions always require your explicit Confirm tap.",
+          text = "Privacy Notice: Hey Numo uses Android's on-device SpeechRecognizer for speech input and Firebase AI Logic protected by App Check for Gemini chat. All ledger changes always require your explicit Confirm tap.",
           fontSize = 11.sp,
           color = NumoDS.TextSecondary,
           lineHeight = 15.sp

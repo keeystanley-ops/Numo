@@ -1,8 +1,9 @@
 package com.example.ui.profile
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CenterFocusWeak
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Smartphone
@@ -26,6 +28,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,10 +39,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.auth.BiometricAuthManager
+import com.example.auth.BiometricCapability
 import com.example.auth.ClerkAuthRepository
+import com.example.auth.NumoSessionManager
 import com.example.ui.components.NumoDS
 import com.example.ui.components.NumoFloatingDecorations
 import com.example.ui.components.NumoNeumorphicCard
@@ -46,19 +58,99 @@ import com.example.ui.components.NumoPrimaryButton
 import com.example.ui.components.NumoScreenBackground
 import kotlinx.coroutines.launch
 
+private fun Context.findFragmentActivity(): FragmentActivity? {
+  var current: Context? = this
+  while (current is ContextWrapper) {
+    if (current is FragmentActivity) return current
+    current = current.baseContext
+  }
+  return current as? FragmentActivity
+}
+
 @Composable
 fun SecurityPrivacyScreen(
+  userId: String = "",
   userEmail: String,
+  biometricEnabled: Boolean,
+  twoFactorEnabled: Boolean,
+  onBiometricChanged: (Boolean) -> Unit,
+  onOpenTwoFactorSetup: () -> Unit,
+  onTwoFactorSynced: (Boolean) -> Unit = {},
   onSignOut: () -> Unit,
   onBack: () -> Unit
 ) {
   val context = LocalContext.current
+  val lifecycleOwner = LocalLifecycleOwner.current
   val coroutineScope = rememberCoroutineScope()
 
-  var biometricEnabled by remember { mutableStateOf(true) }
-  var twoFactorEnabled by remember { mutableStateOf(false) }
   var showPasswordDialog by remember { mutableStateOf(false) }
   var isSendingReset by remember { mutableStateOf(false) }
+  var biometricCapability by remember { mutableStateOf(BiometricAuthManager.checkAvailability(context)) }
+
+  LaunchedEffect(Unit) {
+    val liveStatus = ClerkAuthRepository.fetchUserSecurityStatus()
+    val localActive = NumoSessionManager.hasLocalTwoFactorEnabled(userId, userEmail)
+    if (liveStatus.success) {
+      onTwoFactorSynced(liveStatus.twoFactorEnabled || localActive)
+    } else if (localActive && !twoFactorEnabled) {
+      onTwoFactorSynced(true)
+    }
+  }
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        biometricCapability = BiometricAuthManager.checkAvailability(context)
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
+  }
+
+  fun handleBiometricToggle(wantEnabled: Boolean) {
+    if (!wantEnabled) {
+      onBiometricChanged(false)
+      Toast.makeText(context, "Biometric login turned off.", Toast.LENGTH_SHORT).show()
+      return
+    }
+    val capability = BiometricAuthManager.checkAvailability(context)
+    biometricCapability = capability
+    if (capability != BiometricCapability.AVAILABLE) {
+      Toast.makeText(
+        context,
+        BiometricAuthManager.availabilityMessage(capability),
+        Toast.LENGTH_LONG
+      ).show()
+      return
+    }
+    val activity = context.findFragmentActivity()
+    if (activity == null) {
+      Toast.makeText(
+        context,
+        "Unable to open biometric prompt right now.",
+        Toast.LENGTH_SHORT
+      ).show()
+      return
+    }
+    BiometricAuthManager.authenticate(
+      activity = activity,
+      title = "Enable Biometric Login",
+      subtitle = "Verify your fingerprint or face unlock for $userEmail",
+      negativeButtonText = "Cancel",
+      onSuccess = {
+        onBiometricChanged(true)
+        Toast.makeText(context, "Biometric login enabled!", Toast.LENGTH_SHORT).show()
+      },
+      onError = { errMsg ->
+        Toast.makeText(context, errMsg, Toast.LENGTH_LONG).show()
+      },
+      onCancelled = {
+        // Leave toggle OFF since the user cancelled biometric enrollment confirmation
+      }
+    )
+  }
 
   NumoScreenBackground {
     NumoFloatingDecorations(variant = 1)
@@ -94,7 +186,9 @@ fun SecurityPrivacyScreen(
       NumoPrimaryButton(
         text = "Change Password",
         onClick = { showPasswordDialog = true },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("btn_change_password"),
         height = 50.dp
       )
 
@@ -118,26 +212,43 @@ fun SecurityPrivacyScreen(
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 16.dp, vertical = 14.dp),
+              .clickable { handleBiometricToggle(!biometricEnabled) }
+              .padding(horizontal = 16.dp, vertical = 14.dp)
+              .testTag("row_biometric_login"),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Icon(
               imageVector = Icons.Outlined.CenterFocusWeak,
-              contentDescription = null,
+              contentDescription = "Biometric Login",
               tint = NumoDS.TextPrimary,
               modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
-            Text(
-              text = "Biometric Login",
-              fontSize = 14.5.sp,
-              fontWeight = FontWeight.Medium,
-              color = NumoDS.TextPrimary,
-              modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Biometric Login",
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = NumoDS.TextPrimary
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = when {
+                  biometricEnabled -> "Enabled • Locks after 15s away"
+                  biometricCapability == BiometricCapability.NOT_ENROLLED ->
+                    "No biometrics enrolled in device Settings"
+                  biometricCapability == BiometricCapability.UNAVAILABLE ->
+                    "Not available on this device"
+                  else -> "Off • Tap to unlock with fingerprint or face"
+                },
+                fontSize = 11.5.sp,
+                color = if (biometricEnabled) NumoDS.HeroTealMid else NumoDS.TextMuted
+              )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             NumoPillToggle(
               checked = biometricEnabled,
-              onCheckedChange = { biometricEnabled = it },
+              onCheckedChange = { handleBiometricToggle(it) },
               activeColorTop = NumoDS.CyanBright,
               activeColorBottom = NumoDS.HeroTealMid
             )
@@ -151,29 +262,49 @@ fun SecurityPrivacyScreen(
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 16.dp, vertical = 14.dp),
+              .clickable { onOpenTwoFactorSetup() }
+              .padding(horizontal = 16.dp, vertical = 14.dp)
+              .testTag("row_two_factor_auth"),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Icon(
               imageVector = Icons.Outlined.Lock,
-              contentDescription = null,
+              contentDescription = "Two-Factor Authentication",
               tint = NumoDS.TextPrimary,
               modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
-            Text(
-              text = "Two-Factor\nAuthentication",
-              fontSize = 14.5.sp,
-              lineHeight = 19.sp,
-              fontWeight = FontWeight.Medium,
-              color = NumoDS.TextPrimary,
-              modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Two-Factor Authentication",
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = NumoDS.TextPrimary
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = if (twoFactorEnabled) {
+                  "Authenticator App Active"
+                } else {
+                  "Tap to set up Authenticator App"
+                },
+                fontSize = 11.5.sp,
+                color = if (twoFactorEnabled) NumoDS.SuccessGreen else NumoDS.TextMuted
+              )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             NumoPillToggle(
               checked = twoFactorEnabled,
-              onCheckedChange = { twoFactorEnabled = it },
+              onCheckedChange = { onOpenTwoFactorSetup() },
               activeColorTop = NumoDS.CyanBright,
               activeColorBottom = NumoDS.HeroTealMid
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+              imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = "Open Two-Factor Authentication Setup",
+              tint = NumoDS.TextMuted,
+              modifier = Modifier.size(20.dp)
             )
           }
         }
@@ -229,6 +360,7 @@ fun SecurityPrivacyScreen(
             modifier = Modifier
               .clickable { onSignOut() }
               .padding(horizontal = 6.dp, vertical = 4.dp)
+              .testTag("btn_security_logout")
           )
         }
       }

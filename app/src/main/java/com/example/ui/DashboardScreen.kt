@@ -13,12 +13,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.auth.NumoSessionManager
 import com.example.ui.components.NumoBottomNavBar
 import com.example.ui.components.NumoNavTab
 import com.example.ui.profile.CategoriesScreen
@@ -27,6 +29,7 @@ import com.example.ui.profile.LinkedAccountsScreen
 import com.example.ui.profile.NotificationsScreen
 import com.example.ui.profile.PersonalInformationScreen
 import com.example.ui.profile.SecurityPrivacyScreen
+import com.example.ui.profile.TwoFactorSetupScreen
 import com.example.ui.voice.HeyNumoHost
 import com.example.ui.voice.HeyNumoSubScreen
 import com.example.voice.HeyNumoSettings
@@ -48,6 +51,7 @@ private enum class NumoDashboardPage {
   PERSONAL_INFORMATION,
   LINKED_ACCOUNTS,
   SECURITY_PRIVACY,
+  TWO_FACTOR_SETUP,
   NOTIFICATIONS,
   CATEGORIES,
   HELP_SUPPORT,
@@ -56,17 +60,25 @@ private enum class NumoDashboardPage {
 
 @Composable
 fun DashboardScreen(
+  userId: String = "",
   userEmail: String = "Ayesha Wanjiru",
+  rawEmail: String = "",
   provider: String = "Google",
   userCurrency: String = "KES",
   customAccounts: List<Pair<String, String>> = emptyList(),
+  biometricEnabled: Boolean = false,
+  twoFactorEnabled: Boolean = false,
+  onBiometricPreferenceChanged: (Boolean) -> Unit = {},
+  onTwoFactorPreferenceChanged: (Boolean) -> Unit = {},
   onSignOut: () -> Unit = {}
 ) {
   val context = LocalContext.current
   val lifecycleOwner = LocalLifecycleOwner.current
-  var currentPage by remember { mutableStateOf(NumoDashboardPage.HOME) }
-  var heyNumoInitialScreen by remember { mutableStateOf(HeyNumoSubScreen.HOME) }
-  var heyNumoStartListening by remember { mutableStateOf(false) }
+  var currentPage by rememberSaveable { mutableStateOf(NumoDashboardPage.HOME) }
+  var isBiometricEnabled by remember(biometricEnabled) { mutableStateOf(biometricEnabled) }
+  var isTwoFactorEnabled by remember(twoFactorEnabled) { mutableStateOf(twoFactorEnabled) }
+  var heyNumoInitialScreen by rememberSaveable { mutableStateOf(HeyNumoSubScreen.HOME) }
+  var heyNumoStartListening by rememberSaveable { mutableStateOf(false) }
 
   LaunchedEffect(Unit) {
     HeyNumoSettings.init(context)
@@ -76,6 +88,7 @@ fun DashboardScreen(
 
   DisposableEffect(wakeWordAudioManager) {
     wakeWordAudioManager.onWakeWordDetected = {
+      wakeWordAudioManager.stopWakeWordListening()
       heyNumoInitialScreen = HeyNumoSubScreen.LISTENING
       heyNumoStartListening = true
       currentPage = NumoDashboardPage.HEY_NUMO
@@ -164,6 +177,14 @@ fun DashboardScreen(
     }
   }
 
+  val effectiveAccountEmail = remember(rawEmail, userEmail) {
+    when {
+      rawEmail.contains("@") -> rawEmail
+      userEmail.contains("@") -> userEmail
+      else -> emailDisplay
+    }
+  }
+
   val selectedNavTab = when (currentPage) {
     NumoDashboardPage.HOME,
     NumoDashboardPage.UPCOMING_BILLS,
@@ -181,6 +202,7 @@ fun DashboardScreen(
     NumoDashboardPage.PERSONAL_INFORMATION,
     NumoDashboardPage.LINKED_ACCOUNTS,
     NumoDashboardPage.SECURITY_PRIVACY,
+    NumoDashboardPage.TWO_FACTOR_SETUP,
     NumoDashboardPage.NOTIFICATIONS,
     NumoDashboardPage.CATEGORIES,
     NumoDashboardPage.HELP_SUPPORT -> NumoNavTab.PROFILE
@@ -190,6 +212,7 @@ fun DashboardScreen(
     NumoDashboardPage.PERSONAL_INFORMATION,
     NumoDashboardPage.LINKED_ACCOUNTS,
     NumoDashboardPage.SECURITY_PRIVACY,
+    NumoDashboardPage.TWO_FACTOR_SETUP,
     NumoDashboardPage.HEY_NUMO
   )
 
@@ -201,6 +224,7 @@ fun DashboardScreen(
       NumoDashboardPage.SPENDING_INSIGHTS -> currentPage = NumoDashboardPage.ANALYTICS
       NumoDashboardPage.SAVINGS_GOALS,
       NumoDashboardPage.DEBT_MANAGEMENT -> currentPage = NumoDashboardPage.FINANCIAL_GOALS
+      NumoDashboardPage.TWO_FACTOR_SETUP -> navigateBack(NumoDashboardPage.SECURITY_PRIVACY)
       NumoDashboardPage.SETTINGS,
       NumoDashboardPage.PERSONAL_INFORMATION,
       NumoDashboardPage.LINKED_ACCOUNTS,
@@ -248,6 +272,7 @@ fun DashboardScreen(
           onOpenProfile = { navigateTo(NumoDashboardPage.PROFILE) },
           onOpenInsights = { navigateTo(NumoDashboardPage.SPENDING_INSIGHTS) },
           onOpenHeyNumo = {
+            wakeWordAudioManager.stopWakeWordListening()
             heyNumoInitialScreen = HeyNumoSubScreen.HOME
             heyNumoStartListening = false
             navigateTo(NumoDashboardPage.HEY_NUMO)
@@ -340,6 +365,10 @@ fun DashboardScreen(
         )
 
         NumoDashboardPage.SETTINGS -> SettingsScreen(
+          biometricEnabled = isBiometricEnabled,
+          twoFactorEnabled = isTwoFactorEnabled,
+          onOpenSecurityPrivacy = { navigateTo(NumoDashboardPage.SECURITY_PRIVACY) },
+          onOpenTwoFactorSetup = { navigateTo(NumoDashboardPage.TWO_FACTOR_SETUP) },
           onBack = { currentPage = NumoDashboardPage.PROFILE }
         )
 
@@ -356,9 +385,35 @@ fun DashboardScreen(
         )
 
         NumoDashboardPage.SECURITY_PRIVACY -> SecurityPrivacyScreen(
-          userEmail = emailDisplay,
+          userId = userId,
+          userEmail = effectiveAccountEmail,
+          biometricEnabled = isBiometricEnabled,
+          twoFactorEnabled = isTwoFactorEnabled,
+          onBiometricChanged = { enabled ->
+            isBiometricEnabled = enabled
+            NumoSessionManager.setBiometricEnabledForUser(userId, effectiveAccountEmail, enabled)
+            onBiometricPreferenceChanged(enabled)
+          },
+          onOpenTwoFactorSetup = { navigateTo(NumoDashboardPage.TWO_FACTOR_SETUP) },
+          onTwoFactorSynced = { enabled ->
+            isTwoFactorEnabled = enabled
+            NumoSessionManager.setTwoFactorEnabledForUser(userId, effectiveAccountEmail, enabled)
+            onTwoFactorPreferenceChanged(enabled)
+          },
           onSignOut = onSignOut,
-          onBack = { currentPage = NumoDashboardPage.PROFILE }
+          onBack = { navigateBack(NumoDashboardPage.PROFILE) }
+        )
+
+        NumoDashboardPage.TWO_FACTOR_SETUP -> TwoFactorSetupScreen(
+          userId = userId,
+          userEmail = effectiveAccountEmail,
+          isCurrentlyEnabled = isTwoFactorEnabled,
+          onTwoFactorStatusChanged = { enabled ->
+            isTwoFactorEnabled = enabled
+            NumoSessionManager.setTwoFactorEnabledForUser(userId, effectiveAccountEmail, enabled)
+            onTwoFactorPreferenceChanged(enabled)
+          },
+          onBack = { navigateBack(NumoDashboardPage.SECURITY_PRIVACY) }
         )
 
         NumoDashboardPage.NOTIFICATIONS -> NotificationsScreen(
@@ -375,7 +430,7 @@ fun DashboardScreen(
 
         NumoDashboardPage.HEY_NUMO -> HeyNumoHost(
           userName = displayName,
-          userId = emailDisplay,
+          userId = userId.ifBlank { effectiveAccountEmail },
           customAccounts = customAccounts,
           initialScreen = heyNumoInitialScreen,
           startListeningImmediately = heyNumoStartListening,

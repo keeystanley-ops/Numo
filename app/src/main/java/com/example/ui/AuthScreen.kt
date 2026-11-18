@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CenterFocusWeak
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,8 +74,11 @@ import kotlinx.coroutines.launch
 fun AuthScreen(
   externalErrorMessage: String? = null,
   isOAuthLoading: Boolean = false,
+  biometricProfileEmail: String? = null,
   onClearExternalError: () -> Unit = {},
   onSignInSuccess: (email: String) -> Unit = {},
+  onSecondFactorRequired: (signInId: String, email: String, factors: List<String>) -> Unit = { _, _, _ -> },
+  onBiometricSignInClick: () -> Unit = {},
   onSignUpClick: () -> Unit = {},
   onGoogleClick: () -> Unit = {},
   onAppleClick: () -> Unit = {},
@@ -109,6 +113,8 @@ fun AuthScreen(
       isLoading = false
       if (result.success) {
         onSignInSuccess(cleanEmail)
+      } else if (result.requiresSecondFactor && !result.signInId.isNullOrBlank()) {
+        onSecondFactorRequired(result.signInId, cleanEmail, result.supportedSecondFactors)
       } else {
         localErrorMessage = result.errorMessage ?: "Sign in failed. Please check your credentials."
       }
@@ -421,6 +427,41 @@ fun AuthScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
               text = "Apple",
+              fontSize = 14.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = NumoDS.TextPrimary
+            )
+          }
+        }
+      }
+
+      // Strictly Opt-In Biometric Quick Sign-In (only rendered when enabled in Settings)
+      if (!biometricProfileEmail.isNullOrBlank()) {
+        Spacer(modifier = Modifier.height(14.dp))
+        NumoNeumorphicCard(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .testTag("btn_biometric_signin"),
+          cornerRadius = 50.dp,
+          onClick = { if (!isLoading && !isOAuthLoading) onBiometricSignInClick() }
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxSize()
+              .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Outlined.CenterFocusWeak,
+              contentDescription = "Sign in with Biometrics",
+              tint = NumoDS.HeroTealMid,
+              modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Sign in with Biometrics",
               fontSize = 14.sp,
               fontWeight = FontWeight.SemiBold,
               color = NumoDS.TextPrimary

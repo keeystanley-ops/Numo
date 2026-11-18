@@ -16,8 +16,15 @@ data class HeyNumoVoiceOption(
   val isRecommended: Boolean = false
 )
 
+data class HeyNumoModelOption(
+  val id: String,
+  val label: String,
+  val description: String,
+  val isRecommended: Boolean = false
+)
+
 /**
- * Persistent Voice Assistant settings & recent conversation history.
+ * Persistent Voice & Gemini AI Assistant settings and recent conversation history.
  */
 object HeyNumoSettings {
   private const val PREFS_NAME = "hey_numo_voice_prefs"
@@ -27,15 +34,39 @@ object HeyNumoSettings {
   private const val KEY_LANGUAGE_TAG = "language_tag"
   private const val KEY_HAPTIC = "haptic_feedback"
   private const val KEY_VOICE_NAME = "voice_name"
+  private const val KEY_VOICE_MIGRATED_MALE_V1 = "voice_migrated_male_v1"
+  private const val KEY_MODEL_NAME = "gemini_model_name"
   private const val KEY_RECENT_PROMPTS = "recent_prompts"
 
+  const val DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+  const val DEFAULT_VOICE_NAME = "Charon"
+
+  val modelOptions = listOf(
+    HeyNumoModelOption(
+      id = "gemini-3.8-flash",
+      label = "Gemini 3.8 Flash",
+      description = "Best all-around speed & financial reasoning (Default)",
+      isRecommended = true
+    ),
+    HeyNumoModelOption(
+      id = "gemini-3.5-flash-lite",
+      label = "Gemini 3.5 Flash-Lite",
+      description = "Ultra-fast responses for quick budget & cash checks"
+    ),
+    HeyNumoModelOption(
+      id = "gemini-4-argon",
+      label = "Gemini 4 Argon",
+      description = "Deepest reasoning for portfolio, tax & debt strategy"
+    )
+  )
+
   val voiceOptions = listOf(
-    HeyNumoVoiceOption("Sulafat", "Warm · Female", "Warm, calm companion — default", isRecommended = true),
-    HeyNumoVoiceOption("Vindemiatrix", "Gentle · Female", "Soft and reassuring"),
-    HeyNumoVoiceOption("Achernar", "Soft · Female", "Calm and soothing"),
-    HeyNumoVoiceOption("Aoede", "Breezy · Female", "Casual and conversational"),
-    HeyNumoVoiceOption("Despina", "Smooth · Female", "Polished and professional"),
-    HeyNumoVoiceOption("Achird", "Friendly · Male", "Friendly alternative")
+    HeyNumoVoiceOption("Charon", "Warm · Male", "Deep, calm Gemini Live tone — default", isRecommended = true),
+    HeyNumoVoiceOption("Fenrir", "Rich Baritone · Male", "Expressive and assured"),
+    HeyNumoVoiceOption("Orus", "Firm · Male", "Clear and confident"),
+    HeyNumoVoiceOption("Puck", "Upbeat · Male", "Energetic and conversational"),
+    HeyNumoVoiceOption("Achird", "Friendly · Male", "Warm and approachable"),
+    HeyNumoVoiceOption("Sulafat", "Warm · Female", "Gentle conversational alternative")
   )
 
   private var prefs: SharedPreferences? = null
@@ -50,7 +81,9 @@ object HeyNumoSettings {
     private set
   var hapticFeedbackEnabled by mutableStateOf(true)
     private set
-  var selectedVoice by mutableStateOf("Sulafat")
+  var selectedVoice by mutableStateOf(DEFAULT_VOICE_NAME)
+    private set
+  var selectedModel by mutableStateOf(DEFAULT_GEMINI_MODEL)
     private set
 
   val recentPrompts = mutableStateListOf(
@@ -67,7 +100,22 @@ object HeyNumoSettings {
     speechRate = p.getFloat(KEY_SPEECH_RATE, 1.0f).coerceIn(0.75f, 1.5f)
     languageTag = p.getString(KEY_LANGUAGE_TAG, "en-US") ?: "en-US"
     hapticFeedbackEnabled = p.getBoolean(KEY_HAPTIC, true)
-    selectedVoice = p.getString(KEY_VOICE_NAME, "Sulafat") ?: "Sulafat"
+
+    val storedVoice = p.getString(KEY_VOICE_NAME, DEFAULT_VOICE_NAME) ?: DEFAULT_VOICE_NAME
+    val migratedMale = p.getBoolean(KEY_VOICE_MIGRATED_MALE_V1, false)
+    if (!migratedMale) {
+      val upgraded = if (storedVoice == "Sulafat") DEFAULT_VOICE_NAME else storedVoice
+      selectedVoice = if (voiceOptions.any { it.id == upgraded }) upgraded else DEFAULT_VOICE_NAME
+      p.edit()
+        .putString(KEY_VOICE_NAME, selectedVoice)
+        .putBoolean(KEY_VOICE_MIGRATED_MALE_V1, true)
+        .apply()
+    } else {
+      selectedVoice = if (voiceOptions.any { it.id == storedVoice }) storedVoice else DEFAULT_VOICE_NAME
+    }
+
+    val storedModel = p.getString(KEY_MODEL_NAME, DEFAULT_GEMINI_MODEL) ?: DEFAULT_GEMINI_MODEL
+    selectedModel = if (modelOptions.any { it.id == storedModel }) storedModel else DEFAULT_GEMINI_MODEL
 
     val rawPrompts = p.getString(KEY_RECENT_PROMPTS, null)
     if (!rawPrompts.isNullOrBlank()) {
@@ -112,8 +160,18 @@ object HeyNumoSettings {
   }
 
   fun updateSelectedVoice(voice: String) {
-    selectedVoice = voice
-    prefs?.edit()?.putString(KEY_VOICE_NAME, voice)?.apply()
+    val resolved = if (voiceOptions.any { it.id == voice }) voice else DEFAULT_VOICE_NAME
+    selectedVoice = resolved
+    prefs?.edit()
+      ?.putString(KEY_VOICE_NAME, resolved)
+      ?.putBoolean(KEY_VOICE_MIGRATED_MALE_V1, true)
+      ?.apply()
+  }
+
+  fun updateSelectedModel(modelId: String) {
+    val resolved = if (modelOptions.any { it.id == modelId }) modelId else DEFAULT_GEMINI_MODEL
+    selectedModel = resolved
+    prefs?.edit()?.putString(KEY_MODEL_NAME, resolved)?.apply()
   }
 
   fun recordRecentPrompt(prompt: String) {

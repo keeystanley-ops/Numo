@@ -11,10 +11,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -22,14 +21,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.voice.GeminiHeyNumoClient
-import com.example.voice.HeyNumoMessage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.voice.HeyNumoChatViewModel
 import com.example.voice.HeyNumoSettings
-import com.example.voice.NumoFinancialAssistantEngine
 import com.example.voice.NumoVoiceAudioManager
 import com.example.voice.PendingFinancialAction
 import com.example.voice.VoiceOrbState
-import kotlinx.coroutines.launch
 
 enum class HeyNumoSubScreen {
   LISTENING,
@@ -39,7 +37,8 @@ enum class HeyNumoSubScreen {
 
 /**
  * Coordinates the 3-screen Hey Numo experience (Listening, Home, Chat),
- * on-device SpeechRecognizer, foreground wake-word spotting, TTS, permissions, and Settings.
+ * on-device SpeechRecognizer, foreground wake-word spotting, TTS, permissions,
+ * Settings, and Firebase AI Logic multi-turn Gemini chat.
  */
 @Composable
 fun HeyNumoHost(
@@ -50,33 +49,37 @@ fun HeyNumoHost(
   startListeningImmediately: Boolean = false,
   onOpenBudget: () -> Unit,
   onOpenNotifications: () -> Unit,
-  onBackToDashboard: () -> Unit
+  onBackToDashboard: () -> Unit,
+  chatViewModel: HeyNumoChatViewModel = viewModel()
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val lifecycleOwner = LocalLifecycleOwner.current
-  val coroutineScope = rememberCoroutineScope()
 
   LaunchedEffect(Unit) {
     HeyNumoSettings.init(context)
   }
 
-  val audioManager = remember { NumoVoiceAudioManager(context) }
-  val engine = remember(customAccounts) { NumoFinancialAssistantEngine(customAccounts) }
+  LaunchedEffect(customAccounts) {
+    chatViewModel.configureAccounts(customAccounts)
+  }
 
-  var currentScreen by remember(initialScreen) { mutableStateOf(initialScreen) }
+  val audioManager = remember { NumoVoiceAudioManager(context) }
+
+  var currentScreen by rememberSaveable(initialScreen) { mutableStateOf(initialScreen) }
   var showSettings by remember { mutableStateOf(false) }
 
-  var orbState by remember { mutableStateOf(VoiceOrbState.IDLE) }
+  val messages by chatViewModel.messages.collectAsStateWithLifecycle()
+  val chatUiState by chatViewModel.uiState.collectAsStateWithLifecycle()
+  val orbState by chatViewModel.orbState.collectAsStateWithLifecycle()
+
   var rmsLevel by remember { mutableFloatStateOf(0f) }
   var partialTranscript by remember { mutableStateOf("") }
+  var listeningHint by remember { mutableStateOf<String?>(null) }
   var statusError by remember { mutableStateOf<String?>(null) }
 
   var hasMicPermission by remember { mutableStateOf(audioManager.hasRecordAudioPermission()) }
   var pendingStartVoiceAfterPermission by remember { mutableStateOf(false) }
-
-  val messages = remember { mutableStateListOf<HeyNumoMessage>() }
-  var pendingResetHistory by remember { mutableStateOf(false) }
 
   fun pulseHaptic() {
     if (HeyNumoSettings.hapticFeedbackEnabled) {
@@ -87,39 +90,20 @@ fun HeyNumoHost(
   fun submitQuery(query: String, openChat: Boolean) {
     val clean = query.trim()
     if (clean.isEmpty()) return
-
-    HeyNumoSettings.recordRecentPrompt(clean)
-    messages.add(HeyNumoMessage(isUser = true, text = clean))
-    orbState = VoiceOrbState.THINKING
+    statusError = null
 
     if (openChat) {
       currentScreen = HeyNumoSubScreen.CHAT
     }
 
-    val shouldReset = pendingResetHistory
-    pendingResetHistory = false
-
-    coroutineScope.launch {
-      val reply = engine.processUserQueryWithGemini(
-        userId = userId,
-        userName = userName,
-        rawQuery = clean,
-        resetHistory = shouldReset
-      )
-      messages.add(
-        HeyNumoMessage(
-          isUser = false,
-          text = reply.displayText,
-          pendingAction = reply.pendingAction
-        )
-      )
-
-      if (HeyNumoSettings.voiceResponseEnabled) {
-        audioManager.speak(reply.spokenText)
-      } else {
-        orbState = VoiceOrbState.IDLE
-      }
-    }
+    chatViewModel.submitQuery(
+      userId = userId,
+      userName = userName,
+      rawQuery = clean,
+      customAccounts = customAccounts,
+      speakReply = HeyNumoSettings.voiceResponseEnabled,
+      onSpeak = { spokenText -> audioManager.speak(spokenText) }
+    )
   }
 
   val micPermissionLauncher = rememberLauncherForActivityResult(
@@ -138,7 +122,7 @@ fun HeyNumoHost(
     } else {
       pendingStartVoiceAfterPermission = false
       statusError = "Microphone permission is required for voice commands."
-      orbState = VoiceOrbState.ERROR
+      chatViewModel.setOrbState(VoiceOrbState.ERROR)
     }
   }
 
@@ -157,13 +141,29 @@ fun HeyNumoHost(
 
   // Wire audio manager callbacks
   DisposableEffect(audioManager) {
-    audioManager.onOrbStateChanged = { state -> orbState = state }
+    audioManager.onOrbStateChanged = { state -> chatViewModel.setOrbState(state) }
     audioManager.onRmsChanged = { rms -> rmsLevel = rms }
     audioManager.onPartialTranscript = { partial -> partialTranscript = partial }
+    audioManager.onListeningHintChanged = { hint -> listeningHint = hint }
     audioManager.onVoiceError = { err -> statusError = err }
     audioManager.onFinalTranscript = { finalText ->
       partialTranscript = ""
+      listeningHint = null
       submitQuery(finalText, openChat = true)
+    }
+    audioManager.onFinalAudioWav = { wavBytes ->
+      partialTranscript = ""
+      listeningHint = null
+      statusError = null
+      currentScreen = HeyNumoSubScreen.CHAT
+      chatViewModel.submitAudioQuery(
+        userId = userId,
+        userName = userName,
+        audioWavBytes = wavBytes,
+        customAccounts = customAccounts,
+        speakReply = HeyNumoSettings.voiceResponseEnabled,
+        onSpeak = { spokenText -> audioManager.speak(spokenText) }
+      )
     }
     audioManager.onWakeWordDetected = {
       pulseHaptic()
@@ -245,6 +245,7 @@ fun HeyNumoHost(
           rmsLevel = rmsLevel,
           partialTranscript = partialTranscript,
           statusError = statusError,
+          listeningHint = listeningHint,
           onMicClick = {
             when (orbState) {
               VoiceOrbState.LISTENING -> {
@@ -283,8 +284,7 @@ fun HeyNumoHost(
           onStartVoiceAssistant = { beginVoiceCapture() },
           onSubmitPrompt = { prompt -> submitQuery(prompt, openChat = true) },
           onStartNewChat = {
-            messages.clear()
-            pendingResetHistory = true
+            chatViewModel.clearConversation()
             currentScreen = HeyNumoSubScreen.CHAT
           },
           onOpenSettings = { showSettings = true },
@@ -300,50 +300,26 @@ fun HeyNumoHost(
       HeyNumoSubScreen.CHAT -> {
         HeyNumoChatScreen(
           messages = messages,
+          chatUiState = chatUiState,
           orbState = orbState,
           onSendMessage = { text -> submitQuery(text, openChat = false) },
+          onRetryLastMessage = {
+            chatViewModel.retryLastQuery(
+              speakReply = HeyNumoSettings.voiceResponseEnabled,
+              onSpeak = { spokenText -> audioManager.speak(spokenText) }
+            )
+          },
+          onDismissError = { chatViewModel.dismissError() },
           onConfirmAction = { action: PendingFinancialAction ->
             pulseHaptic()
-            val idx = messages.indexOfFirst { it.pendingAction?.id == action.id }
-            if (idx >= 0) {
-              val old = messages[idx]
-              messages[idx] = old.copy(
-                pendingAction = action.copy(
-                  statusLabel = "Confirmed",
-                  isResolved = true,
-                  wasConfirmed = true
-                )
-              )
-            }
-            val reply = engine.executePendingAction(action)
-            messages.add(HeyNumoMessage(isUser = false, text = reply.displayText))
-            coroutineScope.launch {
-              GeminiHeyNumoClient.confirmAction(userId, action.id, confirmed = true)
-            }
-            if (HeyNumoSettings.voiceResponseEnabled) {
-              audioManager.speak(reply.spokenText)
+            chatViewModel.confirmAction(action) { spokenText ->
+              audioManager.speak(spokenText)
             }
           },
           onCancelAction = { action: PendingFinancialAction ->
             pulseHaptic()
-            val idx = messages.indexOfFirst { it.pendingAction?.id == action.id }
-            if (idx >= 0) {
-              val old = messages[idx]
-              messages[idx] = old.copy(
-                pendingAction = action.copy(
-                  statusLabel = "Cancelled",
-                  isResolved = true,
-                  wasConfirmed = false
-                )
-              )
-            }
-            val reply = engine.cancelPendingAction(action)
-            messages.add(HeyNumoMessage(isUser = false, text = reply.displayText))
-            coroutineScope.launch {
-              GeminiHeyNumoClient.confirmAction(userId, action.id, confirmed = false)
-            }
-            if (HeyNumoSettings.voiceResponseEnabled) {
-              audioManager.speak(reply.spokenText)
+            chatViewModel.cancelAction(action) { spokenText ->
+              audioManager.speak(spokenText)
             }
           },
           onMicClick = { beginVoiceCapture() },
@@ -375,8 +351,7 @@ fun HeyNumoHost(
         audioManager.previewVoice(voiceName)
       },
       onClearHistory = {
-        messages.clear()
-        pendingResetHistory = true
+        chatViewModel.clearConversation()
       },
       onDismiss = { showSettings = false }
     )

@@ -17,8 +17,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.CenterFocusWeak
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +44,10 @@ import com.example.ui.components.NumoToggleSwitch
 
 @Composable
 fun SettingsScreen(
+  biometricEnabled: Boolean = false,
+  twoFactorEnabled: Boolean = false,
+  onOpenSecurityPrivacy: () -> Unit = {},
+  onOpenTwoFactorSetup: () -> Unit = {},
   onBack: () -> Unit = {}
 ) {
   var budgetMethodEnabled by remember { mutableStateOf(true) }
@@ -69,6 +77,7 @@ fun SettingsScreen(
           modifier = Modifier
             .size(24.dp)
             .clickable { onBack() }
+            .testTag("btn_settings_back")
         )
         Spacer(modifier = Modifier.width(14.dp))
         Text(
@@ -160,7 +169,105 @@ fun SettingsScreen(
 
       Spacer(modifier = Modifier.height(18.dp))
 
-      // 4. Notifications Section
+      // 4. Security & Authentication Section (Direct entry to Biometrics & 2FA)
+      Text(
+        text = "Security & Authentication",
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Bold,
+        color = NumoDS.TextPrimary
+      )
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      NumoNeumorphicCard(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("settings_biometric_card"),
+        cornerRadius = 16.dp,
+        onClick = onOpenSecurityPrivacy
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Icon(
+            imageVector = Icons.Outlined.CenterFocusWeak,
+            contentDescription = "Biometric Login",
+            tint = NumoDS.HeroTealMid,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Biometric Login",
+              fontSize = 14.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = NumoDS.TextPrimary
+            )
+            Text(
+              text = if (biometricEnabled) "Enabled • Locks after 15s away" else "Off • Manage opt-in preference",
+              fontSize = 11.5.sp,
+              color = if (biometricEnabled) NumoDS.HeroTealMid else NumoDS.TextSecondary
+            )
+          }
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Manage Biometric Login",
+            tint = NumoDS.TextSecondary,
+            modifier = Modifier.size(20.dp)
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      NumoNeumorphicCard(
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("settings_2fa_card"),
+        cornerRadius = 16.dp,
+        onClick = onOpenTwoFactorSetup
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Icon(
+            imageVector = Icons.Outlined.Lock,
+            contentDescription = "Two-Factor Authentication",
+            tint = NumoDS.HeroTealMid,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Two-Factor Authentication (2FA)",
+              fontSize = 14.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = NumoDS.TextPrimary
+            )
+            Text(
+              text = if (twoFactorEnabled) "Authenticator App Active" else "Tap to add Authenticator App",
+              fontSize = 11.5.sp,
+              color = if (twoFactorEnabled) NumoDS.SuccessGreen else NumoDS.TextSecondary
+            )
+          }
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Open 2FA Setup",
+            tint = NumoDS.TextSecondary,
+            modifier = Modifier.size(20.dp)
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(18.dp))
+
+      // 5. Notifications Section
       Text(
         text = "Notifications",
         fontSize = 15.sp,

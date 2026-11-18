@@ -50,6 +50,7 @@ fun HeyNumoListeningScreen(
   rmsLevel: Float,
   partialTranscript: String,
   statusError: String?,
+  listeningHint: String? = null,
   onMicClick: () -> Unit,
   onOpenHome: () -> Unit,
   onSwitchToKeyboard: () -> Unit,
@@ -67,6 +68,7 @@ fun HeyNumoListeningScreen(
   val subtitle = when {
     orbState == VoiceOrbState.ERROR && !statusError.isNullOrBlank() -> statusError
     orbState == VoiceOrbState.LISTENING && partialTranscript.isNotBlank() -> "\"$partialTranscript\""
+    orbState == VoiceOrbState.LISTENING && !listeningHint.isNullOrBlank() -> listeningHint
     orbState == VoiceOrbState.LISTENING -> "Speak now, I'm all ears!"
     orbState == VoiceOrbState.THINKING -> "Checking your Numo accounts..."
     orbState == VoiceOrbState.SPEAKING -> "Tap mic to interrupt or ask another"

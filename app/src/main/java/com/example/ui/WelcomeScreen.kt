@@ -11,14 +11,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -29,10 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -48,8 +50,8 @@ import com.example.ui.components.NumoDS
 /**
  * Numo Official Full-Screen Animated Piggy-Bank Splash Screen.
  * Fills the entire viewport edge-to-edge using the supplied 1080p MP4 asset,
- * reveals the white & gold-glowing downward arrow button ONLY after playback completes,
- * and advances to onboarding on tap or left swipe without auto-redirecting.
+ * reveals a minimal teal claymorphic circle button with a crisp white downward arrow
+ * after playback completes, and advances on tap or left swipe.
  */
 @Composable
 fun WelcomeScreen(
@@ -125,25 +127,33 @@ fun WelcomeScreen(
     }
   }
 
-  // Subtle floating & pulsing glow for the white + gold completion arrow
-  val infiniteTransition = rememberInfiniteTransition(label = "whiteGoldArrowPulse")
+  // Gentle floating motion & subtle teal aura for the claymorphic circular arrow
+  val infiniteTransition = rememberInfiniteTransition(label = "tealCircleArrowMotion")
   val arrowFloatY by infiniteTransition.animateFloat(
     initialValue = 0f,
-    targetValue = 7f,
+    targetValue = 5f,
     animationSpec = infiniteRepeatable(
-      animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+      animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
       repeatMode = RepeatMode.Reverse
     ),
     label = "arrowFloatY"
   )
-  val glowPulse by infiniteTransition.animateFloat(
-    initialValue = 0.72f,
+  val auraPulse by infiniteTransition.animateFloat(
+    initialValue = 0.78f,
     targetValue = 1f,
     animationSpec = infiniteRepeatable(
-      animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+      animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
       repeatMode = RepeatMode.Reverse
     ),
-    label = "glowPulse"
+    label = "auraPulse"
+  )
+
+  val interactionSource = remember { MutableInteractionSource() }
+  val isPressed by interactionSource.collectIsPressedAsState()
+  val pressScale by animateFloatAsState(
+    targetValue = if (isPressed) 0.92f else 1f,
+    animationSpec = spring(dampingRatio = 0.65f, stiffness = 420f),
+    label = "pressScale"
   )
 
   Box(
@@ -263,101 +273,93 @@ fun WelcomeScreen(
         .testTag("welcome_hero_illustration")
     )
 
-    // Bottom-center White Circular Arrow with Warm Goldish Glow & Sparkles
-    // Hidden completely while animation plays; appears only when playback finishes.
+    // Minimal Teal Claymorphic Circle Button with White Arrow
+    // Hidden while animation plays; fades in after playback finishes with zero square box shadow.
     AnimatedVisibility(
       visible = isAnimationComplete,
       enter = fadeIn(tween(380)),
       modifier = Modifier
         .align(Alignment.BottomCenter)
         .navigationBarsPadding()
-        .padding(bottom = 42.dp)
+        .padding(bottom = 44.dp)
     ) {
-      Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.graphicsLayer {
-          translationY = with(density) { arrowFloatY.dp.toPx() }
-        }
+      Box(
+        modifier = Modifier
+          .size(88.dp)
+          .clip(CircleShape)
+          .graphicsLayer {
+            translationY = with(density) { arrowFloatY.dp.toPx() }
+            scaleX = pressScale
+            scaleY = pressScale
+          }
+          .semantics { contentDescription = "Continue to Onboarding" }
+          .clickable(
+            enabled = !hasNavigated,
+            role = Role.Button,
+            interactionSource = interactionSource,
+            indication = null
+          ) {
+            navigateOnce()
+          }
+          .testTag("welcome_get_started_button"),
+        contentAlignment = Alignment.Center
       ) {
-        // 3 little gold sparkle rays above the white circle
-        Canvas(modifier = Modifier.size(width = 36.dp, height = 14.dp)) {
-          val rayColor = Color(0xFFF59E0B).copy(alpha = glowPulse)
-          val cx = size.width / 2f
-          drawLine(
-            color = rayColor,
-            start = Offset(cx, 2f),
-            end = Offset(cx, size.height - 2f),
-            strokeWidth = 2.4.dp.toPx(),
-            cap = StrokeCap.Round
-          )
-          drawLine(
-            color = rayColor,
-            start = Offset(cx - 10.dp.toPx(), 5f),
-            end = Offset(cx - 7.dp.toPx(), size.height - 1f),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round
-          )
-          drawLine(
-            color = rayColor,
-            start = Offset(cx + 10.dp.toPx(), 5f),
-            end = Offset(cx + 7.dp.toPx(), size.height - 1f),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round
-          )
-        }
-
-        Spacer(modifier = Modifier.height(2.dp))
-
+        // Subtle circular teal ambient glow (strictly circular, no box bounds)
         Box(
           modifier = Modifier
-            .size(92.dp)
-            .semantics { contentDescription = "Continue to Onboarding" }
-            .clickable(
-              enabled = !hasNavigated,
-              role = Role.Button
-            ) {
-              navigateOnce()
-            }
-            .testTag("welcome_get_started_button"),
-          contentAlignment = Alignment.Center
-        ) {
-          // Warm goldish outer glow halo
-          Box(
-            modifier = Modifier
-              .size(86.dp)
-              .clip(CircleShape)
-              .background(
-                Brush.radialGradient(
-                  colors = listOf(
-                    Color(0xFFFBBF24).copy(alpha = 0.42f * glowPulse),
-                    Color(0xFFF59E0B).copy(alpha = 0.16f * glowPulse),
-                    Color.Transparent
-                  )
+            .size(82.dp)
+            .clip(CircleShape)
+            .background(
+              Brush.radialGradient(
+                colors = listOf(
+                  NumoDS.Turquoise.copy(alpha = 0.24f * auraPulse),
+                  NumoDS.BtnTealMid.copy(alpha = 0.08f * auraPulse),
+                  Color.Transparent
                 )
               )
-          )
+            )
+        )
 
-          // Crisp White Circular Button with Dark Teal/Umber Downward Chevron
+        // Minimal 60.dp Teal Claymorphic Circle with Crisp White Arrow
+        Box(
+          modifier = Modifier
+            .size(60.dp)
+            .shadow(
+              elevation = 12.dp,
+              shape = CircleShape,
+              ambientColor = NumoDS.BtnTealBottom,
+              spotColor = NumoDS.BtnTealBottom
+            )
+            .clip(CircleShape)
+            .background(
+              Brush.verticalGradient(
+                colors = listOf(
+                  NumoDS.BtnTealTop,
+                  NumoDS.BtnTealMid,
+                  NumoDS.BtnTealBottom
+                )
+              )
+            )
+            .border(1.2.dp, Color.White.copy(alpha = 0.34f), CircleShape),
+          contentAlignment = Alignment.Center
+        ) {
+          // Soft top specular reflection highlight for claymorphic finish
           Box(
             modifier = Modifier
-              .size(60.dp)
-              .shadow(
-                elevation = 12.dp,
-                shape = CircleShape,
-                ambientColor = Color(0xFFF59E0B),
-                spotColor = Color(0xFFF59E0B)
-              )
+              .align(Alignment.TopCenter)
+              .padding(top = 4.dp)
+              .width(26.dp)
+              .height(6.dp)
               .clip(CircleShape)
-              .background(Color.White),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.KeyboardArrowDown,
-              contentDescription = null,
-              tint = Color(0xFF134E4A),
-              modifier = Modifier.size(32.dp)
-            )
-          }
+              .background(Color.White.copy(alpha = 0.22f))
+          )
+
+          Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(30.dp)
+          )
         }
       }
     }
